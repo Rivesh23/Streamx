@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Header, Request
+from fastapi import FastAPI, HTTPException, Header, Request, Depends
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,92 +20,76 @@ app.add_middleware(
 DB_DIR = os.getenv("DATA_DIR", os.path.dirname(__file__))
 DB_FILE = os.path.join(DB_DIR, "library.db")
 
-from passlib.context import CryptContext
-import jwt
-from datetime import datetime, timedelta
-
-# Auth Configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "aethernex_super_secret_key")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30 * 24 * 60 # 30 days
-
-pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-def create_access_token(data: dict):
-    to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS library 
-                 (tmdb_id INTEGER PRIMARY KEY, type TEXT, title TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS progress 
-                 (tmdb_id INTEGER PRIMARY KEY, time REAL, watched INTEGER, last_updated DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS users 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE, password_hash TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS favorites 
-                 (tmdb_id INTEGER PRIMARY KEY, type TEXT, title TEXT)''')
     
-    # Defaults
-    c.execute("SELECT count(*) FROM library")
-    if c.fetchone()[0] == 0:
-        defaults = [
-            (27205, "movie", "Inception"),
-            (603, "movie", "The Matrix"),
-            (157336, "movie", "Interstellar"),
-            (1396, "tv", "Breaking Bad"),
-            (66732, "tv", "Stranger Things")
-        ]
-        c.executemany("INSERT INTO library (tmdb_id, type, title) VALUES (?, ?, ?)", defaults)
-        conn.commit()
+    # Check if migration is needed (by checking if 'users' table exists but 'library' doesn't have user_id, or simply checking table info)
+    # We'll check if 'progress' has 'user_id' column
+    needs_migration = False
+    try:
+        c.execute("SELECT user_id FROM progress LIMIT 1")
+    except sqlite3.OperationalError:
+        # column or table doesn't exist
+        # Check if table exists at all to decide if it's a migration or fresh init
+        c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='progress'")
+        if c.fetchone():
+            needs_migration = True
+    
+    if needs_migration:
+        print("Migrating database to multi-user schema...")
+        tables = ['library', 'progress', 'favorites']
+        for table in tables:
+            # Check if table exists
+            c.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table}'")
+            if not c.fetchone():
+                continue
 
-    # Auto-seed default user if none exists
-    c.execute("SELECT count(*) FROM users")
-    if c.fetchone()[0] == 0:
-        email = "luca@irongate.io"
-        password = "password123"
-        hashed_pw = get_password_hash(password)
-        c.execute("INSERT INTO users (email, password_hash) VALUES (?, ?)", (email, hashed_pw))
-        conn.commit()
+            # Rename old table
+            c.execute(f"ALTER TABLE {table} RENAME TO {table}_old")
 
-    # Migration: Check if last_updated exists in progress
-    c.execute("PRAGMA table_info(progress)")
-    columns = [col[1] for col in c.fetchall()]
-    if "last_updated" not in columns:
-        c.execute("ALTER TABLE progress ADD COLUMN last_updated DATETIME DEFAULT CURRENT_TIMESTAMP")
-        conn.commit()
+            # Create new table with user_id
+            if table == 'library':
+                c.execute(f'''CREATE TABLE {table} 
+                             (user_id TEXT, tmdb_id INTEGER, type TEXT, title TEXT, 
+                              PRIMARY KEY (user_id, tmdb_id))''')
+                c.execute(f"INSERT INTO {table} (user_id, tmdb_id, type, title) SELECT 'legacy', tmdb_id, type, title FROM {table}_old")
+            
+            elif table == 'progress':
+                c.execute(f'''CREATE TABLE {table} 
+                             (user_id TEXT, tmdb_id INTEGER, time REAL, watched INTEGER, last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+                              PRIMARY KEY (user_id, tmdb_id))''')
+                # Check if old table has last_updated
+                c.execute(f"PRAGMA table_info({table}_old)")
+                cols = [col[1] for col in c.fetchall()]
+                if 'last_updated' in cols:
+                    c.execute(f"INSERT INTO {table} (user_id, tmdb_id, time, watched, last_updated) SELECT 'legacy', tmdb_id, time, watched, last_updated FROM {table}_old")
+                else:
+                    c.execute(f"INSERT INTO {table} (user_id, tmdb_id, time, watched) SELECT 'legacy', tmdb_id, time, watched FROM {table}_old")
 
-    # Auto-seed default user if none exists
-    c.execute("SELECT count(*) FROM users")
-    if c.fetchone()[0] == 0:
-        email = "luca@irongate.io"
-        password = "password123"
-        hashed_pw = get_password_hash(password)
-        c.execute("INSERT INTO users (email, password_hash) VALUES (?, ?)", (email, hashed_pw))
+            elif table == 'favorites':
+                c.execute(f'''CREATE TABLE {table} 
+                             (user_id TEXT, tmdb_id INTEGER, type TEXT, title TEXT,
+                              PRIMARY KEY (user_id, tmdb_id))''')
+                c.execute(f"INSERT INTO {table} (user_id, tmdb_id, type, title) SELECT 'legacy', tmdb_id, type, title FROM {table}_old")
+        
         conn.commit()
-    else:
-        # Check if the existing user is the default one and update its hash if needed
-        # (Optional: just ensure it's there)
-        pass
-
+    
+    # Ensure tables exist (for fresh install)
+    c.execute('''CREATE TABLE IF NOT EXISTS library 
+                 (user_id TEXT, tmdb_id INTEGER, type TEXT, title TEXT, 
+                  PRIMARY KEY (user_id, tmdb_id))''')
+    c.execute('''CREATE TABLE IF NOT EXISTS progress 
+                 (user_id TEXT, tmdb_id INTEGER, time REAL, watched INTEGER, last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+                  PRIMARY KEY (user_id, tmdb_id))''')
+    c.execute('''CREATE TABLE IF NOT EXISTS favorites 
+                 (user_id TEXT, tmdb_id INTEGER, type TEXT, title TEXT,
+                  PRIMARY KEY (user_id, tmdb_id))''')
+    
     conn.close()
 
 init_db()
 tmdb.init_cache()
-
-class UserAuth(BaseModel):
-    email: str
-    password: str
 
 class Progress(BaseModel):
     tmdb_id: int
@@ -114,39 +98,15 @@ class Progress(BaseModel):
     type: Optional[str] = None
     title: Optional[str] = None
 
-@app.post("/api/register")
-def register(user: UserAuth):
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    hashed_pw = get_password_hash(user.password)
-    try:
-        c.execute("INSERT INTO users (email, password_hash) VALUES (?, ?)", (user.email, hashed_pw))
-        conn.commit()
-    except sqlite3.IntegrityError:
-        conn.close()
-        raise HTTPException(status_code=400, detail="Email already registered")
-    conn.close()
-    return {"status": "User created"}
-
-@app.post("/api/login")
-def login(user: UserAuth):
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("SELECT password_hash FROM users WHERE email=?", (user.email,))
-    row = c.fetchone()
-    conn.close()
-    
-    if not row or not verify_password(user.password, row[0]):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    
-    access_token = create_access_token(data={"sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer"}
+# Helper to get user_id from header
+async def get_user_id(x_user_id: Optional[str] = Header("anonymous")):
+    return x_user_id
 
 @app.get("/api/media")
-def get_media():
+def get_media(user_id: str = Depends(get_user_id)):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("SELECT tmdb_id, type, title FROM library")
+    c.execute("SELECT tmdb_id, type, title FROM library WHERE user_id=?", (user_id,))
     rows = c.fetchall()
     conn.close()
 
@@ -201,13 +161,13 @@ def get_tv_details(tmdb_id: int):
     return tmdb.get_tv_seasons(tmdb_id)
 
 @app.post("/api/library/add")
-def add_to_library(item: dict):
+def add_to_library(item: dict, user_id: str = Depends(get_user_id)):
     # item = {tmdb_id, type, title}
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     try:
-        c.execute("INSERT INTO library (tmdb_id, type, title) VALUES (?, ?, ?)", 
-                  (item['tmdb_id'], item['type'], item['title']))
+        c.execute("INSERT INTO library (user_id, tmdb_id, type, title) VALUES (?, ?, ?, ?)", 
+                  (user_id, item['tmdb_id'], item['type'], item['title']))
         conn.commit()
     except sqlite3.IntegrityError:
         pass # Already exists
@@ -215,10 +175,10 @@ def add_to_library(item: dict):
     return {"status": "ok"}
 
 @app.get("/api/favorites")
-def get_favorites():
+def get_favorites(user_id: str = Depends(get_user_id)):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("SELECT tmdb_id, type, title FROM favorites")
+    c.execute("SELECT tmdb_id, type, title FROM favorites WHERE user_id=?", (user_id,))
     rows = c.fetchall()
     conn.close()
 
@@ -244,20 +204,20 @@ def get_favorites():
     return fav_list
 
 @app.post("/api/favorites/toggle")
-def toggle_favorite(item: dict):
+def toggle_favorite(item: dict, user_id: str = Depends(get_user_id)):
     # item = {tmdb_id, type, title}
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("SELECT 1 FROM favorites WHERE tmdb_id=?", (item['tmdb_id'],))
+    c.execute("SELECT 1 FROM favorites WHERE user_id=? AND tmdb_id=?", (user_id, item['tmdb_id']))
     exists = c.fetchone()
     
     status = "added"
     if exists:
-        c.execute("DELETE FROM favorites WHERE tmdb_id=?", (item['tmdb_id'],))
+        c.execute("DELETE FROM favorites WHERE user_id=? AND tmdb_id=?", (user_id, item['tmdb_id']))
         status = "removed"
     else:
-        c.execute("INSERT INTO favorites (tmdb_id, type, title) VALUES (?, ?, ?)", 
-                  (item['tmdb_id'], item['type'], item['title']))
+        c.execute("INSERT INTO favorites (user_id, tmdb_id, type, title) VALUES (?, ?, ?, ?)", 
+                  (user_id, item['tmdb_id'], item['type'], item['title']))
         status = "added"
     
     conn.commit()
@@ -265,47 +225,48 @@ def toggle_favorite(item: dict):
     return {"status": status}
 
 @app.get("/api/favorites/check/{tmdb_id}")
-def check_favorite(tmdb_id: int):
+def check_favorite(tmdb_id: int, user_id: str = Depends(get_user_id)):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("SELECT 1 FROM favorites WHERE tmdb_id=?", (tmdb_id,))
+    c.execute("SELECT 1 FROM favorites WHERE user_id=? AND tmdb_id=?", (user_id, tmdb_id))
     exists = c.fetchone()
     conn.close()
     return {"is_favorite": bool(exists)}
 
 @app.post("/api/progress")
-def save_progress(p: Progress):
+def save_progress(p: Progress, user_id: str = Depends(get_user_id)):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     
     # NEW: Resiliency - ensure item exists in library for the JOIN to work
     if p.type and p.title:
         try:
-            c.execute("INSERT OR IGNORE INTO library (tmdb_id, type, title) VALUES (?, ?, ?)", 
-                      (p.tmdb_id, p.type, p.title))
+            c.execute("INSERT OR IGNORE INTO library (user_id, tmdb_id, type, title) VALUES (?, ?, ?, ?)", 
+                      (user_id, p.tmdb_id, p.type, p.title))
         except:
             pass
 
-    c.execute("INSERT OR REPLACE INTO progress (tmdb_id, time, watched, last_updated) VALUES (?, ?, ?, CURRENT_TIMESTAMP)", 
-              (p.tmdb_id, p.time, 1 if p.watched else 0))
+    c.execute("INSERT OR REPLACE INTO progress (user_id, tmdb_id, time, watched, last_updated) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)", 
+              (user_id, p.tmdb_id, p.time, 1 if p.watched else 0))
     conn.commit()
     conn.close()
     return {"status": "ok"}
 
 @app.get("/api/continue-watching")
-def get_continue_watching():
+def get_continue_watching(user_id: str = Depends(get_user_id)):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     # Get items with progress, joined with library to get type and title
+    # Note: Library join must also match user_id
     query = """
     SELECT p.tmdb_id, l.type, l.title 
     FROM progress p 
-    LEFT JOIN library l ON p.tmdb_id = l.tmdb_id 
-    WHERE p.watched = 0 
+    LEFT JOIN library l ON p.tmdb_id = l.tmdb_id AND p.user_id = l.user_id
+    WHERE p.user_id = ? AND p.watched = 0 
     ORDER BY p.last_updated DESC 
     LIMIT 20
     """
-    c.execute(query)
+    c.execute(query, (user_id,))
     rows = c.fetchall()
     conn.close()
     
@@ -316,7 +277,7 @@ def get_continue_watching():
         
         # Get progress
         c = sqlite3.connect(DB_FILE).cursor()
-        c.execute("SELECT time FROM progress WHERE tmdb_id=?", (tmdb_id,))
+        c.execute("SELECT time FROM progress WHERE user_id=? AND tmdb_id=?", (user_id, tmdb_id))
         prog_row = c.fetchone()
         progress_val = prog_row[0] if prog_row else 0
         
@@ -337,10 +298,10 @@ def get_continue_watching():
 
 
 @app.get("/api/progress/{tmdb_id}")
-def get_progress(tmdb_id: int):
+def get_progress(tmdb_id: int, user_id: str = Depends(get_user_id)):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("SELECT time, watched FROM progress WHERE tmdb_id=?", (tmdb_id,))
+    c.execute("SELECT time, watched FROM progress WHERE user_id=? AND tmdb_id=?", (user_id, tmdb_id))
     row = c.fetchone()
     conn.close()
     if row:

@@ -14,12 +14,31 @@ const client = axios.create({
     baseURL: '/api'
 });
 
-// Interceptor to add auth token
+// Helper to generate UUID
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+// Get or create user ID
+const getUserId = () => {
+    let userId = localStorage.getItem('user_id');
+    if (!userId) {
+        userId = generateUUID();
+        localStorage.setItem('user_id', userId);
+    }
+    return userId;
+};
+
+// Interceptor to add auth token and user ID
 client.interceptors.request.use(config => {
     const token = localStorage.getItem('auth_token');
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
+    config.headers['X-User-ID'] = getUserId();
     return config;
 });
 
