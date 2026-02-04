@@ -1,7 +1,11 @@
 fastapi
 uvicorn
+gunicorn
 requests
 pydantic
 aiofiles
 python-multipart
 python-dotenv
+passlib[bcrypt]
+PyJWT
+sqlite3

@@ -9,7 +9,8 @@ load_dotenv()
 
 API_KEY = os.getenv("TMDB_API_KEY")
 BASE_URL = "https://api.themoviedb.org/3"
-CACHE_DB = os.path.join(os.path.dirname(__file__), "metadata_cache.db")
+CACHE_DIR = os.getenv("DATA_DIR", os.path.dirname(__file__))
+CACHE_DB = os.path.join(CACHE_DIR, "metadata_cache.db")
 
 # Pre-cached data (Expanded slightly for demo)
 MOCK_DETAILS = {
@@ -48,7 +49,7 @@ def search_multi(query_str):
     if cached: return cached
     
     # Mock search results for demo mode (when no API key)
-    if API_KEY == "YOUR_TMDB_API_KEY":
+    if not API_KEY or API_KEY == "YOUR_TMDB_API_KEY":
         q_lower = query_str.lower()
         mock_results = []
         
@@ -67,6 +68,8 @@ def search_multi(query_str):
             mock_results.append({"id": 1396, "media_type": "tv", "name": "Breaking Bad", "poster_path": "/ggFHVNu6YYI5L9pCfOacjizRGt.jpg", "backdrop_path": "/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg", "overview": "When Walter White..."})
         if "interstellar" in q_lower:
             mock_results.append({"id": 157336, "media_type": "movie", "title": "Interstellar", "poster_path": "/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg", "backdrop_path": "/xJHokMBLzb66dDe38JzMyyuk9lz.jpg", "overview": "The adventures of explorers..."})
+        if "harry" in q_lower or "potter" in q_lower:
+            mock_results.append({"id": 671, "media_type": "movie", "title": "Harry Potter and the Philosopher's Stone", "poster_path": "/wuMc08IPKEatf9rnMNXvIDxqP4W.jpg", "backdrop_path": "/hziiv14OpD73u9gAak4XDDfBKa2.jpg", "overview": "Harry Potter has lived under the stairs..."})
         
         return {"results": mock_results}
 
@@ -87,7 +90,7 @@ def get_details(tmdb_id, media_type):
     cached = get_from_cache(query)
     if cached: return cached
 
-    if API_KEY == "YOUR_TMDB_API_KEY":
+    if not API_KEY or API_KEY == "YOUR_TMDB_API_KEY":
         return {} 
 
     try:
@@ -111,7 +114,7 @@ def get_trending(media_type="all", time_window="day"):
     cached = get_from_cache(query)
     if cached: return cached
     
-    if API_KEY == "YOUR_TMDB_API_KEY": return {"results": []}
+    if not API_KEY or API_KEY == "YOUR_TMDB_API_KEY": return {"results": []}
     
     try:
         url = f"{BASE_URL}/trending/{media_type}/{time_window}"
@@ -120,16 +123,38 @@ def get_trending(media_type="all", time_window="day"):
         return resp
     except: return {"results": []}
 
-def get_discover(media_type="movie", sort_by="popularity.desc"):
-    query = f"discover_{media_type}_{sort_by}"
+def get_discover(media_type="movie", sort_by="popularity.desc", genre_id=None):
+    query = f"discover_{media_type}_{sort_by}_{genre_id}"
     cached = get_from_cache(query)
     if cached: return cached
     
-    if API_KEY == "YOUR_TMDB_API_KEY": return {"results": []}
+    if not API_KEY or API_KEY == "YOUR_TMDB_API_KEY": return {"results": []}
     
     try:
         url = f"{BASE_URL}/discover/{media_type}"
-        resp = requests.get(url, params={"api_key": API_KEY, "sort_by": sort_by, "include_adult": "false"}).json()
+        params = {
+            "api_key": API_KEY, 
+            "sort_by": sort_by, 
+            "include_adult": "false"
+        }
+        if genre_id:
+            params["with_genres"] = genre_id
+            
+        resp = requests.get(url, params=params).json()
         save_to_cache(query, resp)
         return resp
     except: return {"results": []}
+
+def get_genres(media_type="movie"):
+    query = f"genres_{media_type}"
+    cached = get_from_cache(query)
+    if cached: return cached
+    
+    if not API_KEY or API_KEY == "YOUR_TMDB_API_KEY": return {"genres": []}
+    
+    try:
+        url = f"{BASE_URL}/genre/{media_type}/list"
+        resp = requests.get(url, params={"api_key": API_KEY}).json()
+        save_to_cache(query, resp)
+        return resp
+    except: return {"genres": []}

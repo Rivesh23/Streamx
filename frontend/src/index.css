@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    body {
+        @apply bg-dark text-white selection:bg-brand selection:text-white;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+    }
+
+    * {
+        @apply border-white/5;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+    }
+}
+
+@layer utilities {
+    .nav-btn {
+        @apply text-white/50 hover:text-white transition-all duration-300 font-bold uppercase tracking-widest text-[10px];
+    }
+
+    .liquid-blur {
+        @apply bg-white/5 backdrop-blur-3xl;
+        will-change: backdrop-filter;
+    }
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Premium Liquid Transitions */
+.liquid-transition {
+    transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.gpu-accelerated {
+    transform: translate3d(0, 0, 0);
+    will-change: transform, opacity;
+}
+
+/* Autofill Fix */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: white;
+    transition: background-color 5000s ease-in-out 0s;
+    box-shadow: inset 0 0 20px 20px rgba(255, 255, 255, 0.05);
+}
+
+.auth-input {
+    @apply w-full py-5 px-6 rounded-[1.5rem] bg-white/5 border border-white/5 text-white outline-none transition-all placeholder:text-white/20;
+}
+
+.auth-input-with-icon {
+    @apply pl-20;
+}
+
+.auth-input:focus {
+    @apply bg-white/10 border-brand/50 ring-4 ring-brand/10;
+}
