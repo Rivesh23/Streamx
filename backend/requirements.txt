@@ -8,4 +8,4 @@ python-multipart
 python-dotenv
 passlib[bcrypt]
 PyJWT
-sqlite3
+
