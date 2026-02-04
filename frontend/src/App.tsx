@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import Login from './Login';
+
 import Profile from './Profile';
 import Home from './Home';
 
@@ -9,7 +9,7 @@ function AnimatedRoutes() {
     return (
         <AnimatePresence mode="wait">
             <Routes location={location} key={location.pathname}>
-                <Route path="/login" element={<Login />} />
+                {/* <Route path="/login" element={<Login />} /> Removed login route */}
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/" element={<Home />} />
                 <Route path="/tv" element={<Home category="tv" />} />

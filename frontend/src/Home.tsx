@@ -30,11 +30,7 @@ export default function Home({ category: routeCategory = 'all' }: HomeProps) {
     const [playingItem, setPlayingItem] = useState<MediaItem | null>(null);
 
     useEffect(() => {
-        const token = localStorage.getItem('auth_token');
-        if (!token) {
-            navigate('/login');
-            return;
-        }
+
 
         const loadData = async () => {
             try {
