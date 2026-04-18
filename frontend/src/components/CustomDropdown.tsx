@@ -12,9 +12,10 @@ interface CustomDropdownProps {
     value: string | number;
     onChange: (value: any) => void;
     className?: string;
+    direction?: 'up' | 'down';
 }
 
-export default function CustomDropdown({ options, value, onChange, className = "" }: CustomDropdownProps) {
+export default function CustomDropdown({ options, value, onChange, className = "", direction = 'down' }: CustomDropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const selectedOption = options.find(o => o.value === value);
@@ -33,19 +34,19 @@ export default function CustomDropdown({ options, value, onChange, className = "
         <div className={`relative ${className}`} ref={containerRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="liquid-blur px-4 py-2 rounded-lg text-sm font-bold border border-white/10 outline-none flex items-center justify-between gap-2 min-w-[120px] transition-all hover:bg-white/10"
+                className={`flex items-center justify-between gap-2 transition-all hover:text-white/80 ${className.includes('bg-transparent') ? className : 'liquid-blur px-4 py-2 rounded-lg text-sm font-bold border border-white/10 min-w-[120px] hover:bg-white/10'}`}
             >
                 <span className="truncate">{selectedOption?.label}</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? (direction === 'up' ? 'rotate-0' : 'rotate-180') : (direction === 'up' ? 'rotate-180' : 'rotate-0')}`} />
             </button>
 
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
-                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 5, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        className="absolute right-0 top-full z-[300] min-w-full bg-surface/95 backdrop-blur-3xl border border-white/10 rounded-xl overflow-hidden shadow-2xl"
+                        initial={{ opacity: 0, y: direction === 'up' ? 10 : -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: direction === 'up' ? 10 : -10, scale: 0.95 }}
+                        className={`absolute right-0 ${direction === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'} z-[300] min-w-full bg-[#1c1c1e] border border-white/10 rounded-xl overflow-hidden shadow-2xl`}
                     >
                         <div className="max-h-64 overflow-y-auto scrollbar-hide py-2">
                             {options.map((option) => (
@@ -55,7 +56,7 @@ export default function CustomDropdown({ options, value, onChange, className = "
                                         onChange(option.value);
                                         setIsOpen(false);
                                     }}
-                                    className={`w-full text-left px-4 py-2.5 text-sm transition-all hover:bg-white/10 ${value === option.value ? 'text-brand font-black bg-brand/5' : 'text-white/60'
+                                    className={`w-full text-left px-4 py-2.5 text-sm transition-all hover:bg-white/10 ${value === option.value ? 'text-[#E50914] font-black bg-white/5' : 'text-white/80'
                                         }`}
                                 >
                                     {option.label}

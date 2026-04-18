@@ -1,0 +1,6 @@
+@echo off
+echo Starting Netflix Backend...
+start cmd /k "cd backend && pip install -r requirements.txt && python main.py"
+
+echo Starting Netflix Frontend...
+start cmd /k "cd frontend && npm install && npm run dev"
