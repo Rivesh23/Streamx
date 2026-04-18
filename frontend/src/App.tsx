@@ -48,13 +48,13 @@ function AppContent() {
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
     const [booted, setBooted] = useState(() => {
         // Only show boot screen once per browser session
-        return sessionStorage.getItem('aethernex_booted') === 'true';
+        return sessionStorage.getItem('streamx_booted') === 'true';
     });
     const { device } = useDevice();
 
     const handleBootComplete = useCallback(() => {
         setBooted(true);
-        sessionStorage.setItem('aethernex_booted', 'true');
+        sessionStorage.setItem('streamx_booted', 'true');
     }, []);
 
     useEffect(() => {

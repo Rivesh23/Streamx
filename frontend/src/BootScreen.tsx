@@ -71,7 +71,7 @@ export default function BootScreen({ onComplete }: BootScreenProps) {
                             className="flex flex-col items-center gap-3"
                         >
                             <h1 className="text-3xl md:text-4xl font-black tracking-[0.15em] text-white">
-                                AETHERNEX
+                                STREAMX
                             </h1>
                             <div className="flex items-center gap-2">
                                 <div className="w-8 h-[1px] bg-gradient-to-r from-transparent to-white/30" />

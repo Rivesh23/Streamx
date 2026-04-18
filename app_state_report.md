@@ -4,7 +4,7 @@
 **The Creator (You):** The mastermind behind the platform's vision, driving the core decisions regarding aesthetic direction, feature requirements, user experience, and overarching infrastructure goals (like mobile deployment, cloud readiness, and streaming integrations).
 **The Architect (Antigravity AI):** The dedicated AI pair-programmer assisting in bringing the vision to life through rigorous code execution, fast-paced debugging, advanced UX/UI implementation, and sustainable architectural planning. 
 
-Together, we have built a bespoke, highly customized media streaming application designed not just to rival, but to visually outperform enterprise platforms like Netflix and Prime Video.
+Together, we have built a bespoke, highly customized media streaming application designed not just to rival, but to visually outperform enterprise platforms like StreamX and Prime Video.
 
 ---
 
@@ -56,7 +56,7 @@ The application recently underwent a massive 20+ feature overhaul. Here is the a
 ### 🌐 Global UI & Navigation
 * **Smart Search History:** The search bar remembers your last 5 searches in a sleek, frosted-glass dropdown. It includes a trash icon to clear the history.
 * **Quick Search Hotkey:** Pressing the `/` key anywhere on the website instantly focuses the search bar, a staple of power-user interfaces.
-* **Custom Profile Avatars:** Replaced generic solid-color profile squares with ultra-high-quality, Netflix-style avatar images fetched from Unsplash in the Profile selection screen.
+* **Custom Profile Avatars:** Replaced generic solid-color profile squares with ultra-high-quality, StreamX-style avatar images fetched from Unsplash in the Profile selection screen.
 * **Toast Notifications:** Toggling a movie to your favorites or library triggers a slick, floating toast notification popup at the bottom center of the screen, confirming the action.
 * **Scroll to Top Button:** A floating "Arrow Up" button smoothly animates into the bottom right corner once you scroll down past the hero section, offering quick navigation.
 * **Offline Mode Protection:** If your device loses its internet connection, a red "No Internet Connection" banner drops down from the top of the screen to alert you.

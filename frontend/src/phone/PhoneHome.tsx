@@ -31,7 +31,7 @@ export default function PhoneHome() {
     const [activeProfile, setActiveProfile] = useState<any>(null);
 
     useEffect(() => {
-        const stored = localStorage.getItem('aethernex_active_profile');
+        const stored = localStorage.getItem('streamx_active_profile');
         if (stored) {
             try { setActiveProfile(JSON.parse(stored)); } catch(e) {}
         }
@@ -440,7 +440,7 @@ function PhoneProfileTab({ profile, onClearDevice, stats }: { profile: any; onCl
                 </div>
                 <div className="flex-1">
                     <h2 className="text-xl font-black">{profile?.name || 'User'}</h2>
-                    <p className="text-xs text-white/30 font-medium">Premium • Aethernex</p>
+                    <p className="text-xs text-white/30 font-medium">Premium • StreamX</p>
                 </div>
                 <button className="w-10 h-10 rounded-full bg-white/[0.05] flex items-center justify-center border border-white/[0.06]">
                     <SettingsIcon className="w-4 h-4 text-white/40" />
@@ -507,7 +507,7 @@ function PhoneProfileTab({ profile, onClearDevice, stats }: { profile: any; onCl
             </div>
 
             {/* Version */}
-            <p className="text-center text-[10px] text-white/10 font-medium mt-8">Aethernex v2.0 • Built with ❤️</p>
+            <p className="text-center text-[10px] text-white/10 font-medium mt-8">StreamX v2.0 • Built with ❤️</p>
         </div>
     );
 }

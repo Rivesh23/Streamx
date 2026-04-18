@@ -16,20 +16,20 @@ const DeviceContext = createContext<DeviceContextType>({
 
 export function DeviceProvider({ children }: { children: ReactNode }) {
     const [device, setDeviceState] = useState<DeviceMode>(() => {
-        const stored = localStorage.getItem('aethernex_device');
+        const stored = localStorage.getItem('streamx_device');
         return (stored as DeviceMode) || null;
     });
 
     const setDevice = (mode: DeviceMode) => {
         setDeviceState(mode);
         if (mode) {
-            localStorage.setItem('aethernex_device', mode);
+            localStorage.setItem('streamx_device', mode);
         }
     };
 
     const clearDevice = () => {
         setDeviceState(null);
-        localStorage.removeItem('aethernex_device');
+        localStorage.removeItem('streamx_device');
     };
 
     return (

@@ -15,7 +15,7 @@ import tmdb
 from logger import log
 from db_manager import init_db, get_db
 
-app = FastAPI(title="Aethernex API")
+app = FastAPI(title="StreamX API")
 
 # Initialize Cache & DB
 tmdb.init_cache()

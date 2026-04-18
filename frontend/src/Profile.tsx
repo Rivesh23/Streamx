@@ -33,7 +33,7 @@ const DEFAULT_PROFILES: ProfileData[] = [
 export default function Profile() {
     const navigate = useNavigate();
     const [profiles, setProfiles] = useState<ProfileData[]>(() => {
-        const stored = localStorage.getItem('aethernex_profiles');
+        const stored = localStorage.getItem('streamx_profiles');
         return stored ? JSON.parse(stored) : DEFAULT_PROFILES;
     });
     const [isEditing, setIsEditing] = useState(false);
@@ -45,7 +45,7 @@ export default function Profile() {
     const [newIsKids, setNewIsKids] = useState(false);
 
     useEffect(() => {
-        localStorage.setItem('aethernex_profiles', JSON.stringify(profiles));
+        localStorage.setItem('streamx_profiles', JSON.stringify(profiles));
     }, [profiles]);
 
     const handleSelectProfile = (profile: ProfileData) => {
@@ -57,7 +57,7 @@ export default function Profile() {
             setNewIsKids(profile.isKids);
             return;
         }
-        localStorage.setItem('aethernex_active_profile', JSON.stringify(profile));
+        localStorage.setItem('streamx_active_profile', JSON.stringify(profile));
         navigate('/');
     };
 

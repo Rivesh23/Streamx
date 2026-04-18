@@ -1,6 +1,6 @@
-# Netflix - Local Streaming Platform
+# StreamX - Local Streaming Platform
 
-A private, local Netflix-style streaming application.
+A private, local StreamX-style streaming application.
 
 ## Features
 - Auto-scan local Movies & TV Shows.

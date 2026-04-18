@@ -12,4 +12,4 @@ def setup_logger(name):
         logger.addHandler(handler)
     return logger
 
-log = setup_logger("aethernex")
+log = setup_logger("streamx")

@@ -1,6 +1,6 @@
-# Aethernex Frontend Architecture - Technical Deep-Dive
+# StreamX Frontend Architecture - Technical Deep-Dive
 
-This document provides a highly detailed breakdown of the Aethernex frontend implementation, ranging from high-level architecture to granular component logic.
+This document provides a highly detailed breakdown of the StreamX frontend implementation, ranging from high-level architecture to granular component logic.
 
 ---
 

@@ -82,7 +82,7 @@ export default function VideoPlayer({ item, onClose, defaultWatchParty = false }
 
     useEffect(() => {
         document.title = `Watching: ${item.title}`;
-        return () => { document.title = 'Aethernex'; };
+        return () => { document.title = 'StreamX'; };
     }, [item.title]);
 
     useEffect(() => {
@@ -270,7 +270,7 @@ export default function VideoPlayer({ item, onClose, defaultWatchParty = false }
                         transition={{ duration: 0.3 }}
                         className="absolute inset-0 z-[300] pointer-events-none flex flex-col justify-between"
                     >
-                        {/* Top Bar - Netflix Style (Contains all custom controls for iframes) */}
+                        {/* Top Bar - StreamX Style (Contains all custom controls for iframes) */}
                         <div className="w-full p-6 md:p-8 bg-gradient-to-b from-black/90 via-black/60 to-transparent pointer-events-auto flex items-start justify-between">
                             <div className="flex items-center gap-6">
                                 <button
@@ -395,7 +395,7 @@ export default function VideoPlayer({ item, onClose, defaultWatchParty = false }
                         {item.is_local && (
                             <div className="w-full pt-32 pb-6 px-6 md:px-10 bg-gradient-to-t from-black/90 via-black/50 to-transparent pointer-events-auto flex flex-col justify-end">
                                 
-                                {/* Title - Netflix places it right above timeline */}
+                                {/* Title - StreamX places it right above timeline */}
                                 <div className="flex items-end gap-4 mb-4">
                                     <h2 className="text-2xl md:text-3xl font-bold text-white drop-shadow-md">{item.title}</h2>
                                     {item.type === 'tv' && (
@@ -403,7 +403,7 @@ export default function VideoPlayer({ item, onClose, defaultWatchParty = false }
                                     )}
                                 </div>
 
-                                {/* Netflix Timeline */}
+                                {/* StreamX Timeline */}
                                 <div className="w-full group mb-4 cursor-pointer relative flex items-center h-4">
                                     <div className="absolute left-0 right-0 h-[3px] bg-white/20 transition-all group-hover:h-1.5 group-hover:bg-white/30">
                                         <div className="h-full bg-[#E50914] w-1/3 relative">
@@ -412,7 +412,7 @@ export default function VideoPlayer({ item, onClose, defaultWatchParty = false }
                                     </div>
                                 </div>
 
-                                {/* Control Actions - Netflix layout */}
+                                {/* Control Actions - StreamX layout */}
                                 <div className="w-full flex items-center justify-between mt-2">
                                     
                                     {/* Left Controls */}
