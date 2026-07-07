@@ -8,8 +8,10 @@ DB_FILE = os.path.join(DB_DIR, "library.db")
 
 @contextmanager
 def get_db():
-    conn = sqlite3.connect(DB_FILE, timeout=15.0)
+    conn = sqlite3.connect(DB_FILE, timeout=30.0)
     try:
+        conn.execute('PRAGMA journal_mode=WAL')
+        conn.execute('PRAGMA synchronous=NORMAL')
         yield conn
         conn.commit()
     except Exception as e:

@@ -1,36 +1,42 @@
-import { memo } from 'react';
+// Light-theme skeleton placeholders
+function SkeletonBlock({ width, height, radius = 10 }: { width: string | number; height: string | number; radius?: number }) {
+    return (
+        <div
+            className="skeleton"
+            style={{ width, height, borderRadius: radius, flexShrink: 0 }}
+        />
+    );
+}
 
-export const Skeleton = memo(({ className }: { className?: string }) => (
-  <div className={`animate-pulse bg-white/5 rounded-2xl ${className}`} />
-));
+export function PortraitSkeleton() {
+    return (
+        <div style={{ flexShrink: 0 }}>
+            <SkeletonBlock width={140} height={210} radius={12} />
+        </div>
+    );
+}
 
-export const PosterSkeleton = memo(() => (
-  <div className="flex-none w-52 aspect-[2/3] space-y-4">
-    <Skeleton className="w-full h-full rounded-[2rem]" />
-  </div>
-));
+export function LandscapeSkeleton() {
+    return (
+        <div style={{ flexShrink: 0 }}>
+            <SkeletonBlock width={260} height={146} radius={12} />
+        </div>
+    );
+}
 
-export const RowSkeleton = memo(() => (
-  <div className="space-y-6 px-12 py-8">
-    <Skeleton className="h-4 w-48 mb-6" />
-    <div className="flex gap-4 overflow-hidden">
-      {[...Array(6)].map((_, i) => (
-        <PosterSkeleton key={i} />
-      ))}
-    </div>
-  </div>
-));
+export function RowSkeleton({ portrait = true }: { portrait?: boolean }) {
+    return (
+        <div className="home-section">
+            <SkeletonBlock width={140} height={20} radius={6} />
+            <div className="section-row" style={{ marginTop: 14 }}>
+                {Array.from({ length: 6 }).map((_, i) =>
+                    portrait ? <PortraitSkeleton key={i} /> : <LandscapeSkeleton key={i} />
+                )}
+            </div>
+        </div>
+    );
+}
 
-export const HeroSkeleton = memo(() => (
-  <div className="relative h-screen w-full bg-dark overflow-hidden">
-    <div className="absolute inset-0 bg-gradient-to-t from-dark via-transparent to-black/80" />
-    <div className="absolute inset-0 flex flex-col justify-end px-20 pb-32">
-      <Skeleton className="h-20 w-3/4 mb-8" />
-      <Skeleton className="h-6 w-1/2 mb-12" />
-      <div className="flex gap-6">
-        <Skeleton className="h-16 w-40 rounded-full" />
-        <Skeleton className="h-16 w-40 rounded-full" />
-      </div>
-    </div>
-  </div>
-));
+// Legacy compat exports
+export const HeroSkeleton = () => null;
+export const PosterSkeleton = PortraitSkeleton;

@@ -188,6 +188,48 @@ def get_discover(media_type="movie", sort_by="popularity.desc", genre_id=None):
         log.error(f"TMDB get_discover failed: {e}")
         return {"results": []}
 
+def get_credits(tmdb_id, media_type):
+    """Fetch cast & crew for a movie or TV show. Returns top cast members."""
+    query = f"credits_{media_type}_{tmdb_id}"
+    cached = get_from_cache(query)
+    if cached: return cached
+
+    if not API_KEY or API_KEY == "YOUR_TMDB_API_KEY":
+        return {"cast": []}
+
+    try:
+        url = f"{BASE_URL}/{media_type}/{tmdb_id}/credits"
+        resp = requests.get(url, params={"api_key": API_KEY}, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        save_to_cache(query, data)
+        return data
+    except requests.exceptions.RequestException as e:
+        log.error(f"TMDB get_credits failed for {media_type} {tmdb_id}: {e}")
+        return {"cast": []}
+
+
+def get_videos(tmdb_id, media_type):
+    """Fetch trailers/videos. Returns the list of video objects from TMDB."""
+    query = f"videos_{media_type}_{tmdb_id}"
+    cached = get_from_cache(query)
+    if cached: return cached
+
+    if not API_KEY or API_KEY == "YOUR_TMDB_API_KEY":
+        return {"results": []}
+
+    try:
+        url = f"{BASE_URL}/{media_type}/{tmdb_id}/videos"
+        resp = requests.get(url, params={"api_key": API_KEY}, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        save_to_cache(query, data)
+        return data
+    except requests.exceptions.RequestException as e:
+        log.error(f"TMDB get_videos failed for {media_type} {tmdb_id}: {e}")
+        return {"results": []}
+
+
 def get_genres(media_type="movie"):
     query = f"genres_{media_type}"
     cached = get_from_cache(query)

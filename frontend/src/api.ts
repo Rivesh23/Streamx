@@ -11,6 +11,44 @@ export interface MediaItem {
     is_local?: boolean;
 }
 
+export interface CastMember {
+    id: number;
+    name: string;
+    character: string;
+    profile_path: string | null;
+}
+
+export interface Genre {
+    id: number;
+    name: string;
+}
+
+export interface FullDetails {
+    tmdb_id: number;
+    type: 'movie' | 'tv';
+    title: string;
+    tagline: string;
+    overview: string;
+    vote_average: number;
+    vote_count: number;
+    runtime: number | null;
+    release_date: string;
+    release_year: string;
+    genres: Genre[];
+    poster: string | null;
+    backdrop: string | null;
+    cast: CastMember[];
+    status: string;
+    number_of_seasons?: number;
+    number_of_episodes?: number;
+}
+
+export interface VideoInfo {
+    trailer_key: string | null;
+    trailer_name: string | null;
+    all_videos: { key: string; name: string; type: string }[];
+}
+
 const client = axios.create({ baseURL: '/api' });
 
 function generateUUID() {
@@ -43,6 +81,8 @@ export const api = {
     getTrending: () => client.get<MediaItem[]>('/trending').then(r => r.data),
     getPopularMovies: () => client.get<MediaItem[]>('/discover?media_type=movie').then(r => r.data),
     getTopTV: () => client.get<MediaItem[]>('/discover?media_type=tv').then(r => r.data),
+    getDiscover: (type: 'movie' | 'tv') => client.get<MediaItem[]>(`/discover?media_type=${type}`).then(r => r.data),
+    getRecommendations: () => client.get<MediaItem[]>('/recommendations').then(r => r.data),
     getGenres: (type: 'movie' | 'tv') => client.get(`/genres?media_type=${type}`).then(r => r.data),
     search: (q: string) => client.get<MediaItem[]>(`/search?q=${q}`).then(r => r.data),
     getSimilar: (id: number, type: string) => client.get<MediaItem[]>(`/similar/${id}?media_type=${type}`).then(r => r.data),
@@ -96,4 +136,12 @@ export const api = {
 
     // Health
     healthCheck: () => client.get('/health').then(r => r.data),
+
+    // Detail Page
+    getFullDetails: (id: number, type: string) =>
+        client.get<FullDetails>(`/details/${type}/${id}`).then(r => r.data),
+    getVideos: (id: number, type: string) =>
+        client.get<VideoInfo>(`/videos/${type}/${id}`).then(r => r.data),
+    sendHeartbeat: (id: number, type: string, title: string, position: number) =>
+        client.post('/heartbeat', { tmdb_id: id, type, title, position_seconds: position }).then(r => r.data),
 };

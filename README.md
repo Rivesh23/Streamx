@@ -10,6 +10,6 @@ A private, local StreamX-style streaming application.
 - Electron desktop app wrapper.
 
 ## Setup
-1. Install Python dependencies: `pip install -r backend/requirements.txt`
-2. Run Backend: `python backend/main.py`
-3. Run Electron: `cd electron && npm install && npm start`
+1. Install Python dependencies: `cd backend` then `pip install -r requirements.txt`
+2. Run Backend: `python main.py` (Server starts on localhost:8000)
+3. Run Frontend: In a new terminal, `cd frontend` then `npm install` and `npm run dev`

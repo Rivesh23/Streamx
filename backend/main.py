@@ -351,7 +351,8 @@ def check_watchlist(tmdb_id: int, user_id: str = Depends(get_current_user)):
     with get_db() as conn:
         c = conn.cursor()
         c.execute("SELECT 1 FROM watchlist WHERE user_id=? AND tmdb_id=?", (user_id, tmdb_id))
-    return {"in_watchlist": bool(c.fetchone())}
+        exists = c.fetchone()
+    return {"in_watchlist": bool(exists)}
 
 # --- Watch History ---
 @app.post("/api/history/log")
@@ -418,7 +419,8 @@ def get_search_history(user_id: str = Depends(get_current_user)):
     with get_db() as conn:
         c = conn.cursor()
         c.execute("SELECT DISTINCT query FROM search_history WHERE user_id=? ORDER BY searched_at DESC LIMIT 10", (user_id,))
-    return [r[0] for r in c.fetchall()]
+        rows = c.fetchall()
+    return [r[0] for r in rows]
 
 # --- Notifications ---
 @app.get("/api/notifications")
@@ -454,6 +456,106 @@ def get_user_stats(user_id: str = Depends(get_current_user)):
     return {"favorites": fav_count, "watchlist": wl_count, "history": hist_count,
             "ratings": rate_count, "total_watch_time_minutes": round(total_time / 60, 1)}
 
+# --- Full Details (for MovieDetailPage) ---
+@app.get("/api/details/{media_type}/{tmdb_id}")
+def get_full_details(media_type: str, tmdb_id: int):
+    if media_type not in ["movie", "tv"]:
+        raise HTTPException(400, "media_type must be 'movie' or 'tv'")
+
+    meta = tmdb.get_details(tmdb_id, media_type)
+    if not meta:
+        raise HTTPException(404, "Not found")
+
+    credits = tmdb.get_credits(tmdb_id, media_type)
+    cast = [
+        {
+            "id": m.get("id"),
+            "name": m.get("name"),
+            "character": m.get("character"),
+            "profile_path": f"https://image.tmdb.org/t/p/w185{m['profile_path']}" if m.get("profile_path") else None,
+        }
+        for m in (credits.get("cast") or [])[:8]
+    ]
+
+    genres = [{"id": g["id"], "name": g["name"]} for g in (meta.get("genres") or [])]
+    title = meta.get("title") or meta.get("name") or "Unknown"
+    release = meta.get("release_date") or meta.get("first_air_date") or ""
+    
+    ep_runtime = meta.get("episode_run_time")
+    runtime = meta.get("runtime") or (ep_runtime[0] if ep_runtime and len(ep_runtime) > 0 else None)
+
+
+    return {
+        "tmdb_id": tmdb_id,
+        "type": media_type,
+        "title": title,
+        "tagline": meta.get("tagline", ""),
+        "overview": meta.get("overview", ""),
+        "vote_average": round(meta.get("vote_average", 0), 1),
+        "vote_count": meta.get("vote_count", 0),
+        "runtime": runtime,
+        "release_date": release,
+        "release_year": release[:4] if release else "",
+        "genres": genres,
+        "poster": f"https://image.tmdb.org/t/p/w500{meta['poster_path']}" if meta.get("poster_path") else None,
+        "backdrop": f"https://image.tmdb.org/t/p/original{meta['backdrop_path']}" if meta.get("backdrop_path") else None,
+        "cast": cast,
+        "status": meta.get("status", ""),
+        "number_of_seasons": meta.get("number_of_seasons"),
+        "number_of_episodes": meta.get("number_of_episodes"),
+    }
+
+
+@app.get("/api/videos/{media_type}/{tmdb_id}")
+def get_videos(media_type: str, tmdb_id: int):
+    if media_type not in ["movie", "tv"]:
+        raise HTTPException(400, "media_type must be 'movie' or 'tv'")
+
+    data = tmdb.get_videos(tmdb_id, media_type)
+    videos = data.get("results", [])
+
+    # Prefer official trailers on YouTube
+    trailers = [v for v in videos if v.get("site") == "YouTube" and v.get("type") == "Trailer"]
+    teasers = [v for v in videos if v.get("site") == "YouTube" and v.get("type") == "Teaser"]
+    clips = [v for v in videos if v.get("site") == "YouTube"]
+
+    best = (trailers or teasers or clips or [None])[0]
+    return {
+        "trailer_key": best.get("key") if best else None,
+        "trailer_name": best.get("name") if best else None,
+        "all_videos": [
+            {"key": v.get("key"), "name": v.get("name"), "type": v.get("type")}
+            for v in clips[:5]
+        ]
+    }
+
+
+# --- Heartbeat (playback resume tracking) ---
+class HeartbeatInput(BaseModel):
+    tmdb_id: int
+    position_seconds: float
+    type: Optional[str] = "movie"
+    title: Optional[str] = None
+
+
+@app.post("/api/heartbeat")
+def playback_heartbeat(hb: HeartbeatInput, user_id: str = Depends(get_current_user)):
+    """Called periodically while the trailer/player is running. Stores playback position."""
+    with get_db() as conn:
+        c = conn.cursor()
+        # Ensure item is in library
+        if hb.type and hb.title:
+            c.execute(
+                "INSERT OR IGNORE INTO library (user_id, tmdb_id, type, title) VALUES (?, ?, ?, ?)",
+                (user_id, hb.tmdb_id, hb.type, hb.title)
+            )
+        c.execute(
+            "INSERT OR REPLACE INTO progress (user_id, tmdb_id, time, watched, last_updated) VALUES (?, ?, ?, 0, CURRENT_TIMESTAMP)",
+            (user_id, hb.tmdb_id, hb.position_seconds)
+        )
+    return {"status": "ok", "position": hb.position_seconds}
+
+
 # --- Similar / Recommendations ---
 @app.get("/api/similar/{tmdb_id}")
 def get_similar(tmdb_id: int, media_type: str = "movie"):
@@ -487,36 +589,40 @@ def scan_local_library():
         return
 
     try:
-        with get_db() as conn:
-            c = conn.cursor()
-            for filename in os.listdir(LIBRARY_DIR):
-                if filename.endswith((".mp4", ".mkv", ".avi")):
-                    match = re.match(r"(.*?)(?:\s*\((\d{4})\))?\.\w+", filename)
-                    if match:
-                        title = match.group(1).strip().replace(".", " ")
-                        year = match.group(2)
+        scanned_files = []
+        for filename in os.listdir(LIBRARY_DIR):
+            if filename.endswith((".mp4", ".mkv", ".avi")):
+                match = re.match(r"(.*?)(?:\s*\((\d{4})\))?\.\w+", filename)
+                if match:
+                    title = match.group(1).strip().replace(".", " ")
+                    year = match.group(2)
+                    
+                    query = title if not year else f"{title} y:{year}"
+                    results = tmdb.search_multi(query)
+                    
+                    tmdb_id = None
+                    mtype = 'movie'
+                    
+                    if results and 'results' in results and len(results['results']) > 0:
+                        # Prefer movies
+                        movies = [res for res in results['results'] if res.get('media_type') == 'movie']
+                        best_match = movies[0] if movies else results['results'][0]
+                        tmdb_id = best_match.get('id')
+                        mtype = best_match.get('media_type', 'movie')
                         
-                        query = title if not year else f"{title} y:{year}"
-                        results = tmdb.search_multi(query)
+                    if tmdb_id:
+                        file_path = os.path.join(LIBRARY_DIR, filename)
+                        scanned_files.append((tmdb_id, mtype, title, file_path))
                         
-                        tmdb_id = None
-                        mtype = 'movie'
-                        
-                        if results and 'results' in results and len(results['results']) > 0:
-                            # Prefer movies
-                            movies = [res for res in results['results'] if res.get('media_type') == 'movie']
-                            best_match = movies[0] if movies else results['results'][0]
-                            tmdb_id = best_match.get('id')
-                            mtype = best_match.get('media_type', 'movie')
-                            
-                        if tmdb_id:
-                            file_path = os.path.join(LIBRARY_DIR, filename)
-                            # Add to library pool as 'local' user
-                            c.execute("""
-                                INSERT OR REPLACE INTO library (user_id, tmdb_id, type, title, file_path) 
-                                VALUES ('local', ?, ?, ?, ?)
-                            """, (tmdb_id, mtype, title, file_path))
-        log.info("Local library scan complete.")
+        if scanned_files:
+            with get_db() as conn:
+                c = conn.cursor()
+                for tmdb_id, mtype, title, file_path in scanned_files:
+                    c.execute("""
+                        INSERT OR REPLACE INTO library (user_id, tmdb_id, type, title, file_path) 
+                        VALUES ('local', ?, ?, ?, ?)
+                    """, (tmdb_id, mtype, title, file_path))
+        log.info(f"Local library scan complete. Processed {len(scanned_files)} files.")
     except Exception as e:
         log.error(f"Error during library scan: {e}")
 
@@ -571,6 +677,58 @@ def stream_video(tmdb_id: int, request: Request, user_id: str = Depends(get_curr
     else:
         return FileResponse(file_path, media_type="video/mp4", headers={'Accept-Ranges': 'bytes'})
 
+
+@app.get("/api/recommendations")
+def get_recommendations(user_id: str = Depends(get_current_user)):
+    # Very smart logic: Look at their recent watch history, favorites, and watchlist.
+    with get_db() as conn:
+        c = conn.cursor()
+        # Get 3 most recently watched, 1 favorite, 1 watchlist
+        c.execute("SELECT tmdb_id, type FROM watch_history WHERE user_id=? ORDER BY watched_at DESC LIMIT 3", (user_id,))
+        history = c.fetchall()
+        c.execute("SELECT tmdb_id, type FROM favorites WHERE user_id=? ORDER BY added_at DESC LIMIT 2", (user_id,))
+        favs = c.fetchall()
+        c.execute("SELECT tmdb_id, type FROM watchlist WHERE user_id=? ORDER BY added_at DESC LIMIT 2", (user_id,))
+        watchlist = c.fetchall()
+
+    pool = history + favs + watchlist
+    if not pool:
+        # Fallback to trending
+        return tmdb.get_trending("all", "week").get("results", [])
+
+    import random
+    selected = random.choice(pool)
+    similar = tmdb.get_similar(selected[0], selected[1])
+    # Filter out things they already watched or have in library
+    return similar[:12]
+
+@app.get("/api/stats")
+def get_user_stats(user_id: str = Depends(get_current_user)):
+    with get_db() as conn:
+        c = conn.cursor()
+        c.execute("SELECT SUM(duration) FROM watch_history WHERE user_id=?", (user_id,))
+        row = c.fetchone()
+        total_watch_time = row[0] if row and row[0] else 0
+
+        c.execute("SELECT COUNT(*) FROM watch_history WHERE user_id=?", (user_id,))
+        total_sessions = c.fetchone()[0]
+
+        # In a real scenario we'd join with a genre table, but since we store titles,
+        # let's fetch their history and analyze genres dynamically via TMDB cache if possible.
+        # For performance, we'll return aggregate numbers here.
+        c.execute("SELECT type, COUNT(*) as cnt FROM watch_history WHERE user_id=? GROUP BY type", (user_id,))
+        type_breakdown = c.fetchall()
+
+        c.execute("SELECT tmdb_id, type FROM favorites WHERE user_id=?", (user_id,))
+        fav_count = len(c.fetchall())
+
+    return {
+        "total_watch_time_minutes": total_watch_time,
+        "total_sessions": total_sessions,
+        "type_breakdown": {t: cnt for t, cnt in type_breakdown},
+        "total_favorites": fav_count,
+        "user_id": user_id
+    }
 
 # --- Static Files & SPA Routing ---
 DIST_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
