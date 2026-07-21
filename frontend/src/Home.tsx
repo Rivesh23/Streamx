@@ -190,7 +190,7 @@ export default function Home({ defaultTab = 'home' }: HomeProps) {
                                         My List ({myList.length})
                                     </h2>
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(154px, 1fr))', gap: 16 }}>
+                                <div className="responsive-card-grid">
                                     {myList.map(item => (
                                         <MediaCard key={`ml-${item.tmdb_id}`} item={item} showLabel />
                                     ))}

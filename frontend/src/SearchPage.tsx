@@ -180,7 +180,7 @@ export default function SearchPage() {
                         </div>
 
                         {/* Cards Grid */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 18 }}>
+                        <div className="responsive-card-grid">
                             {filteredResults.map(item => (
                                 <MediaCard key={`${item.type}-${item.tmdb_id}`} item={item} showLabel />
                             ))}

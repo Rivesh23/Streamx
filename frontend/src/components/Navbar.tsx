@@ -102,7 +102,7 @@ export default function Navbar({ onSearch, searchQuery = '' }: NavbarProps) {
             </button>
 
             {/* Sub-App Switcher */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 999, padding: '3px 5px', border: '1px solid var(--border)' }}>
+            <div className="subapp-switcher">
                 {[
                     { label: '🎬 Video', path: '/' },
                     { label: '📚 Knowledge', path: '/knowledge' },
@@ -147,7 +147,7 @@ export default function Navbar({ onSearch, searchQuery = '' }: NavbarProps) {
 
             {/* Right side controls */}
             <div className="navbar-right">
-                <div className="search-wrapper" style={{ width: focused ? 280 : 210, transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+                <div className={`search-wrapper ${focused ? 'focused' : ''}`}>
                     <Search
                         size={15}
                         className="search-icon"

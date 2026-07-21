@@ -31,6 +31,11 @@
   --shadow-lg:   0 16px 48px rgba(0, 0, 0, 0.8);
   --shadow-accent: 0 0 25px rgba(99, 102, 241, 0.35);
   --shadow-poster: 0 12px 32px -8px rgba(0, 0, 0, 0.8), 0 0 20px rgba(99, 102, 241, 0.12);
+
+  /* Fluid Responsive & Device Tokens */
+  --poster-min-width: 154px;
+  --section-padding: 28px;
+  --hero-height: 520px;
 }
 
 /* Reset */
@@ -232,7 +237,17 @@ img { display: block; max-width: 100%; }
   flex-shrink: 0;
 }
 
-/* ── Search ───────────────────────────────────────────────── */
+/* ── Search & SubApp Switcher ──────────────────────────────── */
+.subapp-switcher {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 999px;
+  padding: 3px 5px;
+  border: 1px solid var(--border);
+}
+
 .search-wrapper { position: relative; }
 .search-icon {
   position: absolute;
@@ -423,10 +438,32 @@ img { display: block; max-width: 100%; }
   border: 1px solid var(--border);
 }
 
-/* ── Detail page ──────────────────────────────────────────── */
+/* ── Detail page & Hero ───────────────────────────────────── */
+.hero-container {
+  position: relative;
+  height: var(--hero-height);
+  overflow: hidden;
+  background: var(--surface-elevated);
+  margin-bottom: 36px;
+}
+.hero-content {
+  position: absolute;
+  bottom: 0; left: 0;
+  z-index: 5;
+  padding: 0 var(--section-padding) 40px;
+  max-width: 680px;
+  width: 100%;
+}
+.hero-buttons {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .detail-hero {
   position: relative;
-  height: 460px;
+  height: var(--hero-height);
   overflow: hidden;
   background: var(--surface);
 }
@@ -457,6 +494,71 @@ img { display: block; max-width: 100%; }
   flex-wrap: wrap;
   gap: 7px;
   margin-bottom: 20px;
+}
+
+/* ── Audio Player Bar Responsive Layout ── */
+.audio-player-bar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 999;
+  background: rgba(11, 13, 18, 0.96);
+  backdrop-filter: blur(24px);
+  border-top: 1px solid rgba(99, 102, 241, 0.2);
+  padding: 0 24px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.audio-player-track-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 260px;
+  min-width: 0;
+}
+
+.audio-player-controls {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.audio-player-tools {
+  flex: 0 0 320px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+  .audio-player-bar {
+    bottom: 56px;
+    height: 56px;
+    padding: 0 12px;
+    gap: 10px;
+    border-top: 1px solid var(--border-glow);
+  }
+  .audio-player-track-info {
+    flex: 1;
+  }
+  .audio-player-controls {
+    flex: initial;
+  }
+  .audio-player-controls > div:first-child {
+    gap: 8px;
+  }
+  .audio-player-controls > div:last-child {
+    display: none !important;
+  }
+  .audio-player-tools {
+    display: none !important;
+  }
 }
 
 /* ── Cast ─────────────────────────────────────────────────── */
@@ -648,19 +750,138 @@ img { display: block; max-width: 100%; }
 
 /* ── Smart TV 10-Foot Remote Control Focus States ── */
 :focus-visible {
-  outline: 3px solid var(--accent) !important;
-  outline-offset: 2px !important;
-  box-shadow: 0 0 25px rgba(99, 102, 241, 0.6) !important;
+  outline: 3.5px solid var(--accent) !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 30px rgba(99, 102, 241, 0.75) !important;
+  transform: scale(1.03) !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
 }
 
-/* ── Mobile Navigation Bar Visibility ── */
+/* ── Responsive Card Grid System ── */
+.responsive-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--poster-min-width), 1fr));
+  gap: 16px;
+}
+
+/* ── Device Adaptations: Phone, Laptop, TV ── */
+
+/* Phone / Mobile (<= 768px) */
+@media (max-width: 768px) {
+  :root {
+    --poster-min-width: 125px;
+    --section-padding: 16px;
+    --hero-height: 380px;
+  }
+
+  .navbar-links {
+    display: none !important;
+  }
+
+  .navbar {
+    padding: 0 14px;
+    gap: 8px;
+    height: 56px;
+  }
+
+  .section-row {
+    scroll-snap-type: x mandatory;
+    scroll-padding-left: 16px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .media-card-portrait {
+    scroll-snap-align: start;
+    width: 125px;
+  }
+
+  .home-header {
+    padding: 20px 16px 12px;
+  }
+
+  .home-section {
+    padding: 0 16px;
+    margin-bottom: 28px;
+  }
+
+  .category-tabs {
+    padding: 0 16px;
+    margin-bottom: 20px;
+  }
+
+  .detail-body {
+    padding: 0 16px 100px;
+  }
+
+  .responsive-card-grid {
+    gap: 12px;
+  }
+}
+
+/* Laptop / Desktop (769px to 1599px) */
 @media (min-width: 769px) {
   .mobile-only-nav {
     display: none !important;
   }
 }
-@media (max-width: 768px) {
-  .navbar-links {
-    display: none !important;
+
+/* TV & 4K Displays (>= 1600px or Smart TV displays) */
+@media (min-width: 1600px) {
+  :root {
+    --poster-min-width: 200px;
+    --section-padding: 44px;
+    --hero-height: 640px;
+  }
+
+  html {
+    font-size: 18px;
+  }
+
+  .media-card-portrait {
+    width: 200px;
+    border-radius: var(--radius-xl);
+  }
+
+  .navbar {
+    height: 76px;
+    padding: 0 44px;
+    gap: 24px;
+  }
+
+  .navbar-logo {
+    font-size: 24px;
+  }
+
+  .navbar-link {
+    font-size: 16px;
+    padding: 8px 20px;
+  }
+
+  .home-section {
+    padding: 0 44px;
+    margin-bottom: 48px;
+  }
+
+  .home-section-title {
+    font-size: 20px;
+  }
+
+  .category-tabs {
+    padding: 0 44px;
+    margin-bottom: 32px;
+  }
+
+  .category-tab {
+    padding: 10px 22px;
+    font-size: 15px;
+  }
+
+  .detail-body {
+    max-width: 1300px;
+    padding: 0 44px 120px;
+  }
+
+  .responsive-card-grid {
+    gap: 24px;
   }
 }

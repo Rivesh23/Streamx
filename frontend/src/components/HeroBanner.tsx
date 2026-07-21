@@ -33,13 +33,7 @@ export default function HeroBanner({ items }: HeroBannerProps) {
     if (!featured) return null;
 
     return (
-        <div style={{
-            position: 'relative',
-            height: 520,
-            overflow: 'hidden',
-            background: 'var(--surface-elevated)',
-            marginBottom: 36,
-        }}>
+        <div className="hero-container">
             {/* Backdrop */}
             <div style={{
                 position: 'absolute', inset: 0,
@@ -70,11 +64,7 @@ export default function HeroBanner({ items }: HeroBannerProps) {
             }} />
 
             {/* Content */}
-            <div style={{
-                position: 'absolute', bottom: 0, left: 0,
-                zIndex: 5,
-                padding: '0 32px 40px',
-                maxWidth: 580,
+            <div className="hero-content" style={{
                 opacity: transitioning ? 0 : 1,
                 transform: transitioning ? 'translateY(8px)' : 'translateY(0)',
                 transition: 'opacity 0.4s ease, transform 0.4s ease',
@@ -93,7 +83,7 @@ export default function HeroBanner({ items }: HeroBannerProps) {
 
                 {/* Title */}
                 <h2 style={{
-                    fontSize: 'clamp(28px, 4vw, 48px)',
+                    fontSize: 'clamp(24px, 4vw, 54px)',
                     fontWeight: 900,
                     letterSpacing: '-0.04em',
                     color: '#F8FAFC',
@@ -121,7 +111,7 @@ export default function HeroBanner({ items }: HeroBannerProps) {
                 )}
 
                 {/* Buttons */}
-                <div style={{ display: 'flex', gap: 12 }}>
+                <div className="hero-buttons">
                     <button
                         onClick={() => navigate(`/${featured.type}/${featured.tmdb_id}`)}
                         className="btn btn-accent btn-lg"

@@ -144,14 +144,7 @@ export default function AudioPlayerBar() {
 
     return (
         <>
-            <div style={{
-                position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 999,
-                background: 'rgba(11,13,18,0.96)', backdropFilter: 'blur(24px)',
-                borderTop: '1px solid rgba(99,102,241,0.2)',
-                padding: '0 24px', height: 80,
-                display: 'flex', alignItems: 'center', gap: 20,
-                boxShadow: '0 -10px 30px rgba(0,0,0,0.5)'
-            }}>
+            <div className="audio-player-bar">
                 {/* Interactive Seek Bar */}
                 <div
                     style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, cursor: 'pointer', background: 'var(--surface-3)' }}
@@ -164,20 +157,20 @@ export default function AudioPlayerBar() {
                 </div>
 
                 {/* Track Info */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: '0 0 260px', minWidth: 0 }}>
-                    <div style={{ width: 50, height: 50, borderRadius: 8, overflow: 'hidden', background: 'var(--surface-3)', flexShrink: 0, position: 'relative' }}>
+                <div className="audio-player-track-info">
+                    <div style={{ width: 42, height: 42, borderRadius: 8, overflow: 'hidden', background: 'var(--surface-3)', flexShrink: 0, position: 'relative' }}>
                         {currentTrack.artworkUrl ? (
                             <img src={currentTrack.artworkUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
-                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Disc3 size={20} style={{ color: 'var(--text-3)' }} /></div>
+                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Disc3 size={18} style={{ color: 'var(--text-3)' }} /></div>
                         )}
                         {loadingStream && (
                             <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Loader2 size={20} style={{ color: 'var(--accent)', animation: 'spin 1s linear infinite' }} />
+                                <Loader2 size={18} style={{ color: 'var(--accent)', animation: 'spin 1s linear infinite' }} />
                             </div>
                         )}
                     </div>
-                    <div style={{ minWidth: 0 }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 800, color: '#F8FAFC', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span>{currentTrack.title}</span>
                             {currentTrack.isYouTube && <Youtube size={12} style={{ color: '#F87171', flexShrink: 0 }} />}
@@ -189,7 +182,7 @@ export default function AudioPlayerBar() {
                 </div>
 
                 {/* Controls (Center) */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <div className="audio-player-controls">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                         <button onClick={toggleShuffle} title="Shuffle" style={{ background: 'none', border: 'none', cursor: 'pointer', color: shuffle ? 'var(--accent)' : 'var(--text-3)', transition: 'color 0.15s' }}>
                             <Shuffle size={16} />
@@ -201,10 +194,10 @@ export default function AudioPlayerBar() {
                             onClick={togglePlay}
                             disabled={loadingStream}
                             style={{
-                                width: 42, height: 42, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                                width: 40, height: 40, borderRadius: '50%', border: 'none', cursor: 'pointer',
                                 background: 'var(--accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 boxShadow: '0 0 20px rgba(99,102,241,0.5)', transition: 'transform 0.15s',
-                                opacity: loadingStream ? 0.7 : 1,
+                                opacity: loadingStream ? 0.7 : 1, flexShrink: 0
                             }}
                             onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'}
                             onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
@@ -231,7 +224,7 @@ export default function AudioPlayerBar() {
                 </div>
 
                 {/* Right Side Tools */}
-                <div style={{ flex: '0 0 320px', display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end' }}>
+                <div className="audio-player-tools">
                     <SpectrumVisualizer analyser={analyserNode} />
 
                     <button
