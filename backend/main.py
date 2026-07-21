@@ -37,6 +37,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/api/health")
+@app.head("/api/health")
+def health_check():
+    return {"status": "ok"}
+
 # --- Exception Handling ---
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
