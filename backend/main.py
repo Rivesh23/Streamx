@@ -12,6 +12,7 @@ from typing import Optional, List
 import sqlite3
 
 import tmdb
+import audio
 from logger import log
 from db_manager import init_db, get_db
 
@@ -164,6 +165,31 @@ def search(q: str):
 @app.get("/api/tv/{tmdb_id}/details")
 def get_tv_details(tmdb_id: int):
     return tmdb.get_tv_seasons(tmdb_id)
+
+@app.get("/api/tv/{tmdb_id}/season/{season_number}")
+def get_tv_season(tmdb_id: int, season_number: int):
+    return tmdb.get_tv_season_episodes(tmdb_id, season_number)
+
+@app.get("/api/audio/search")
+def search_audio(q: str, source: str = "all"):
+    if source == "youtube":
+        return audio.search_youtube_audio(q)
+    elif source == "saavn":
+        return audio.search_saavn_audio(q)
+    else:
+        saavn_results = audio.search_saavn_audio(q)
+        yt_results = audio.search_youtube_audio(q)
+        combined = []
+        max_len = max(len(saavn_results), len(yt_results))
+        for i in range(max_len):
+            if i < len(saavn_results): combined.append(saavn_results[i])
+            if i < len(yt_results): combined.append(yt_results[i])
+        return combined if combined else audio.search_itunes(q)
+
+@app.get("/api/audio/stream/{video_id}")
+def get_audio_stream(video_id: str):
+    url = audio.resolve_youtube_stream_url(video_id)
+    return {"url": url}
 
 @app.post("/api/library/add")
 def add_to_library(item: dict, user_id: str = Depends(get_current_user)):
@@ -686,9 +712,9 @@ def get_recommendations(user_id: str = Depends(get_current_user)):
         # Get 3 most recently watched, 1 favorite, 1 watchlist
         c.execute("SELECT tmdb_id, type FROM watch_history WHERE user_id=? ORDER BY watched_at DESC LIMIT 3", (user_id,))
         history = c.fetchall()
-        c.execute("SELECT tmdb_id, type FROM favorites WHERE user_id=? ORDER BY added_at DESC LIMIT 2", (user_id,))
+        c.execute("SELECT tmdb_id, type FROM favorites WHERE user_id=? ORDER BY rowid DESC LIMIT 2", (user_id,))
         favs = c.fetchall()
-        c.execute("SELECT tmdb_id, type FROM watchlist WHERE user_id=? ORDER BY added_at DESC LIMIT 2", (user_id,))
+        c.execute("SELECT tmdb_id, type FROM watchlist WHERE user_id=? ORDER BY rowid DESC LIMIT 2", (user_id,))
         watchlist = c.fetchall()
 
     pool = history + favs + watchlist

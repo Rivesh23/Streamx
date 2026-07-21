@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Play } from 'lucide-react';
+import { Play, Film, Tv } from 'lucide-react';
 import { MediaItem } from '../api';
 
 interface MediaCardProps {
@@ -27,7 +27,7 @@ export default function MediaCard({ item, showLabel = false }: MediaCardProps) {
                 <div style={{
                     width: '100%',
                     aspectRatio: '2/3',
-                    background: 'var(--surface-2)',
+                    background: 'var(--surface-3)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: 'var(--text-3)',
                 }}>
@@ -35,9 +35,17 @@ export default function MediaCard({ item, showLabel = false }: MediaCardProps) {
                 </div>
             )}
 
-            {/* Hover overlay */}
+            {/* Hover overlay with Play Button icon */}
             <div className="media-card-overlay">
-                <span className="media-card-title">{item.title}</span>
+                <div style={{
+                    width: 38, height: 38, borderRadius: '50%',
+                    background: 'var(--accent)', color: '#fff',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    margin: '0 auto 10px', boxShadow: '0 0 20px rgba(99, 102, 241, 0.6)'
+                }}>
+                    <Play size={18} style={{ fill: '#fff', marginLeft: 2 }} />
+                </div>
+                <span className="media-card-title" style={{ textAlign: 'center' }}>{item.title}</span>
             </div>
 
             {/* Progress bar */}
@@ -45,16 +53,19 @@ export default function MediaCard({ item, showLabel = false }: MediaCardProps) {
                 <div className="progress-bar">
                     <div
                         className="progress-fill"
-                        style={{ width: `${Math.min((item.progress / 7200) * 100, 100)}%` }}
+                        style={{ width: `${Math.min(item.progress * 100, 100)}%` }}
                     />
                 </div>
             )}
 
-            {/* Optional label below */}
+            {/* Label below */}
             {showLabel && (
                 <div className="media-card-label">
                     <div className="media-card-label-title">{item.title}</div>
-                    <div className="media-card-label-meta">{item.type === 'movie' ? 'Movie' : 'TV Show'}</div>
+                    <div className="media-card-label-meta" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {item.type === 'movie' ? <Film size={10} /> : <Tv size={10} />}
+                        <span style={{ textTransform: 'capitalize' }}>{item.type}</span>
+                    </div>
                 </div>
             )}
         </div>

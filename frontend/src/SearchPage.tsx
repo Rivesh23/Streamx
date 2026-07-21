@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, X, Film, Tv, LayoutGrid } from 'lucide-react';
+import { Search, X, Film, Tv, LayoutGrid, Sparkles } from 'lucide-react';
 import { api, MediaItem } from './api';
 import Navbar from './components/Navbar';
 import MediaCard from './components/Poster';
@@ -8,7 +8,7 @@ import MediaCard from './components/Poster';
 type Filter = 'all' | 'movie' | 'tv';
 
 const FILTERS: { id: Filter; label: string; icon: React.ReactNode }[] = [
-    { id: 'all', label: 'All', icon: <LayoutGrid size={14} /> },
+    { id: 'all', label: 'All Results', icon: <LayoutGrid size={14} /> },
     { id: 'movie', label: 'Movies', icon: <Film size={14} /> },
     { id: 'tv', label: 'TV Shows', icon: <Tv size={14} /> },
 ];
@@ -26,47 +26,57 @@ export default function SearchPage() {
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const doSearch = useCallback((q: string) => {
-        if (!q.trim()) { setResults([]); setSearched(false); return; }
+    const performSearch = useCallback((q: string) => {
+        if (!q.trim()) {
+            setResults([]);
+            setSearched(false);
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         setSearched(false);
         if (timerRef.current) clearTimeout(timerRef.current);
         timerRef.current = setTimeout(async () => {
             try {
-                const res = await api.search(q);
+                const res = await api.search(q.trim());
                 setResults(Array.isArray(res) ? res : []);
-            } catch { setResults([]); }
+            } catch {
+                setResults([]);
+            }
             setLoading(false);
             setSearched(true);
-        }, 350);
+        }, 300);
     }, []);
 
-    // Search on query change
     useEffect(() => {
-        doSearch(query);
-        if (query) setSearchParams({ q: query }, { replace: true });
-        else setSearchParams({}, { replace: true });
-    }, [query]);
+        performSearch(query);
+        if (query.trim()) {
+            setSearchParams({ q: query.trim() }, { replace: true });
+        } else {
+            setSearchParams({}, { replace: true });
+        }
+    }, [query, performSearch, setSearchParams]);
 
-    // Auto-focus input
-    useEffect(() => { inputRef.current?.focus(); }, []);
+    useEffect(() => {
+        inputRef.current?.focus();
+    }, []);
 
-    const filtered = filter === 'all' ? results : results.filter(r => r.type === filter);
+    const filteredResults = filter === 'all' ? results : results.filter(r => r.type === filter);
     const movieCount = results.filter(r => r.type === 'movie').length;
     const tvCount = results.filter(r => r.type === 'tv').length;
 
     return (
-        <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-            <Navbar onSearch={() => {}} searchQuery="" />
+        <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
+            <Navbar searchQuery={query} onSearch={q => setQuery(q)} />
 
-            <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px 80px' }}>
+            <div style={{ maxWidth: 1120, margin: '0 auto', padding: '36px 28px 80px' }}>
 
-                {/* Search input */}
-                <div style={{ position: 'relative', marginBottom: 32 }}>
+                {/* Big Search Input Box */}
+                <div style={{ position: 'relative', marginBottom: 36 }}>
                     <Search
-                        size={20}
+                        size={22}
                         style={{
-                            position: 'absolute', left: 18, top: '50%', transform: 'translateY(-50%)',
+                            position: 'absolute', left: 20, top: '50%', transform: 'translateY(-50%)',
                             color: query ? 'var(--accent)' : 'var(--text-3)', transition: 'color 0.2s',
                         }}
                     />
@@ -75,18 +85,19 @@ export default function SearchPage() {
                         type="text"
                         value={query}
                         onChange={e => setQuery(e.target.value)}
-                        placeholder="Search movies, TV shows…"
+                        placeholder="Search for movies, TV shows, actors, or genres…"
                         style={{
                             width: '100%',
-                            padding: '16px 48px 16px 52px',
-                            background: 'var(--surface)',
+                            padding: '18px 52px 18px 58px',
+                            background: 'var(--surface-elevated)',
                             border: `1.5px solid ${query ? 'var(--accent)' : 'var(--border)'}`,
-                            borderRadius: 14,
-                            fontSize: 17,
+                            borderRadius: 'var(--radius-xl)',
+                            fontSize: 18,
+                            fontWeight: 500,
                             color: 'var(--text)',
                             fontFamily: 'inherit',
                             outline: 'none',
-                            boxShadow: query ? '0 0 0 3px var(--accent-glow)' : 'none',
+                            boxShadow: query ? '0 0 25px rgba(99, 102, 241, 0.25)' : 'none',
                             transition: 'border-color 0.2s, box-shadow 0.2s',
                         }}
                     />
@@ -94,8 +105,8 @@ export default function SearchPage() {
                         <button
                             onClick={() => setQuery('')}
                             style={{
-                                position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
-                                padding: 6, borderRadius: 8,
+                                position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)',
+                                padding: 8, borderRadius: 'var(--radius-sm)',
                                 background: 'var(--surface-2)', color: 'var(--text-2)', cursor: 'pointer',
                             }}
                         >
@@ -104,34 +115,44 @@ export default function SearchPage() {
                     )}
                 </div>
 
-                {/* Empty state — no query */}
+                {/* Blank State (No search input) */}
                 {!query && !loading && (
-                    <div style={{ textAlign: 'center', paddingTop: 80 }}>
-                        <div style={{ fontSize: 56, marginBottom: 16 }}>🎬</div>
-                        <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginBottom: 8 }}>
-                            Find your next watch
+                    <div style={{ textAlign: 'center', paddingTop: 60, paddingBottom: 60 }}>
+                        <div style={{
+                            width: 80, height: 80, borderRadius: '50%',
+                            background: 'var(--accent-bg)', border: '1px solid var(--border-glow)',
+                            color: 'var(--accent)', display: 'flex', alignItems: 'center',
+                            justifyContent: 'center', margin: '0 auto 20px'
+                        }}>
+                            <Sparkles size={36} />
+                        </div>
+                        <h2 style={{ fontSize: 24, fontWeight: 900, color: 'var(--text)', marginBottom: 8 }}>
+                            Discover Cinema & Series
                         </h2>
-                        <p style={{ color: 'var(--text-2)', fontSize: 14 }}>
-                            Search for any movie or TV show
+                        <p style={{ color: 'var(--text-2)', fontSize: 15, maxWidth: 440, margin: '0 auto' }}>
+                            Type a movie title or TV show name to search across the entire catalog.
                         </p>
                     </div>
                 )}
 
-                {/* Loading skeletons */}
+                {/* Loading Grid */}
                 {loading && (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(148px, 1fr))', gap: 14 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 16 }}>
                         {Array.from({ length: 12 }).map((_, i) => (
-                            <div key={i} className="skeleton" style={{ height: 222, borderRadius: 12 }} />
+                            <div key={i} className="skeleton" style={{ height: 240, borderRadius: 'var(--radius-lg)' }} />
                         ))}
                     </div>
                 )}
 
-                {/* Results */}
+                {/* Results Section */}
                 {!loading && searched && results.length > 0 && (
                     <>
-                        {/* Filter tabs + count */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-                            <div style={{ display: 'flex', gap: 6 }}>
+                        {/* Filter Tabs Header */}
+                        <div style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            marginBottom: 24, flexWrap: 'wrap', gap: 14
+                        }}>
+                            <div style={{ display: 'flex', gap: 8 }}>
                                 {FILTERS.map(f => {
                                     const count = f.id === 'all' ? results.length : f.id === 'movie' ? movieCount : tvCount;
                                     return (
@@ -139,45 +160,51 @@ export default function SearchPage() {
                                             key={f.id}
                                             onClick={() => setFilter(f.id)}
                                             className={`category-tab ${filter === f.id ? 'active' : ''}`}
-                                            style={{ display: 'flex', alignItems: 'center', gap: 5 }}
+                                            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
                                         >
                                             {f.icon} {f.label}
                                             <span style={{
-                                                marginLeft: 3, padding: '1px 6px', borderRadius: 999,
+                                                marginLeft: 4, padding: '2px 7px', borderRadius: 999,
                                                 background: filter === f.id ? 'var(--accent)' : 'var(--surface-3)',
-                                                color: filter === f.id ? '#000' : 'var(--text-3)',
-                                                fontSize: 10, fontWeight: 800,
+                                                color: filter === f.id ? '#fff' : 'var(--text-3)',
+                                                fontSize: 11, fontWeight: 800,
                                             }}>{count}</span>
                                         </button>
                                     );
                                 })}
                             </div>
-                            <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>
-                                {filtered.length} result{filtered.length !== 1 ? 's' : ''} for "{query}"
+
+                            <span style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 600 }}>
+                                Showing {filteredResults.length} title{filteredResults.length !== 1 ? 's' : ''} for "{query}"
                             </span>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(148px, 1fr))', gap: 14 }}>
-                            {filtered.map(item => (
+                        {/* Cards Grid */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 18 }}>
+                            {filteredResults.map(item => (
                                 <MediaCard key={`${item.type}-${item.tmdb_id}`} item={item} showLabel />
                             ))}
                         </div>
 
-                        {filtered.length === 0 && (
-                            <div className="empty-state">
+                        {filteredResults.length === 0 && (
+                            <div className="empty-state" style={{ paddingTop: 60 }}>
                                 <div className="empty-state-icon">🔍</div>
-                                <div className="empty-state-text">No {filter === 'movie' ? 'movies' : 'TV shows'} found for "{query}"</div>
+                                <div className="empty-state-text">No {filter === 'movie' ? 'movies' : 'TV shows'} matching "{query}"</div>
                             </div>
                         )}
                     </>
                 )}
 
-                {/* No results */}
+                {/* Empty Results State */}
                 {!loading && searched && results.length === 0 && (
                     <div className="empty-state" style={{ paddingTop: 80 }}>
-                        <div className="empty-state-icon">😕</div>
-                        <div className="empty-state-text">No results found for "{query}"</div>
-                        <p style={{ color: 'var(--text-3)', fontSize: 13, marginTop: 8 }}>Try a different title or check your spelling</p>
+                        <div className="empty-state-icon" style={{ fontSize: 48, marginBottom: 12 }}>🎬</div>
+                        <div className="empty-state-text" style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>
+                            No results found for "{query}"
+                        </div>
+                        <p style={{ color: 'var(--text-3)', fontSize: 14, marginTop: 8 }}>
+                            Try checking for spelling errors or searching for a different keyword
+                        </p>
                     </div>
                 )}
             </div>

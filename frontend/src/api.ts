@@ -49,6 +49,20 @@ export interface VideoInfo {
     all_videos: { key: string; name: string; type: string }[];
 }
 
+export interface EpisodeData {
+    episode_number: number;
+    name: string;
+    overview: string;
+    still_path: string | null;
+    air_date?: string;
+    runtime: number;
+}
+
+export interface SeasonData {
+    season_number: number;
+    episodes: EpisodeData[];
+}
+
 const client = axios.create({ baseURL: '/api' });
 
 function generateUUID() {
@@ -90,6 +104,8 @@ export const api = {
 
     // TV
     getTVDetails: (id: number) => client.get(`/tv/${id}/details`).then(r => r.data),
+    getSeasonEpisodes: (id: number, season: number) =>
+        client.get<SeasonData>(`/tv/${id}/season/${season}`).then(r => r.data),
 
     // Library management
     addToLibrary: (item: MediaItem) => client.post('/library/add', item),

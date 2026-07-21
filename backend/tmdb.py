@@ -2,6 +2,7 @@ import requests
 import sqlite3
 import json
 import os
+import re
 import time
 from dotenv import load_dotenv
 from logger import log
@@ -136,6 +137,11 @@ def get_details(tmdb_id, media_type):
         log.error(f"TMDB get_details failed for {media_type} {tmdb_id}: {e}")
         return {}
 
+def clean_html(text: str) -> str:
+    if not text:
+        return ""
+    return re.sub(r'<[^>]*>', '', text).strip()
+
 def get_tv_seasons(tmdb_id):
     if int(tmdb_id) in MOCK_DETAILS:
         count = MOCK_DETAILS[int(tmdb_id)].get("seasons", 1)
@@ -143,6 +149,74 @@ def get_tv_seasons(tmdb_id):
 
     data = get_details(tmdb_id, "tv")
     return data
+
+def get_tv_season_episodes(tmdb_id, season_number):
+    query = f"season_episodes_{tmdb_id}_{season_number}"
+    cached = get_from_cache(query)
+    if cached:
+        return cached
+
+    # Try TMDB API first
+    if API_KEY and API_KEY != "YOUR_TMDB_API_KEY":
+        try:
+            url = f"{BASE_URL}/tv/{tmdb_id}/season/{season_number}"
+            resp = requests.get(url, params={"api_key": API_KEY}, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                episodes = []
+                for ep in data.get("episodes", []):
+                    episodes.append({
+                        "episode_number": ep.get("episode_number"),
+                        "name": ep.get("name") or f"Episode {ep.get('episode_number')}",
+                        "overview": ep.get("overview") or "No description available for this episode.",
+                        "still_path": f"https://image.tmdb.org/t/p/w300{ep.get('still_path')}" if ep.get("still_path") else None,
+                        "air_date": ep.get("air_date"),
+                        "runtime": ep.get("runtime") or 45
+                    })
+                result = {"season_number": int(season_number), "episodes": episodes}
+                save_to_cache(query, result)
+                return result
+        except Exception as e:
+            log.error(f"TMDB season episodes query failed for {tmdb_id} s{season_number}: {e}")
+
+    # Fallback to TVMaze API
+    try:
+        url = f"https://api.tvmaze.com/shows/{tmdb_id}/episodes"
+        resp = requests.get(url, timeout=5)
+        if resp.status_code == 200:
+            all_eps = resp.json()
+            season_eps = [e for e in all_eps if e.get("season") == int(season_number)]
+            episodes = []
+            for ep in season_eps:
+                img = ep.get("image") or {}
+                episodes.append({
+                    "episode_number": ep.get("number"),
+                    "name": ep.get("name") or f"Episode {ep.get('number')}",
+                    "overview": clean_html(ep.get("summary")) or "No description available for this episode.",
+                    "still_path": img.get("medium") or img.get("original"),
+                    "air_date": ep.get("airdate"),
+                    "runtime": ep.get("runtime") or 45
+                })
+            if episodes:
+                result = {"season_number": int(season_number), "episodes": episodes}
+                save_to_cache(query, result)
+                return result
+    except Exception as e:
+        log.error(f"TVMaze fallback failed for show {tmdb_id}: {e}")
+
+    # Final fallback if no remote metadata found
+    return {
+        "season_number": int(season_number),
+        "episodes": [
+            {
+                "episode_number": i,
+                "name": f"Episode {i}",
+                "overview": "No description available for this episode.",
+                "still_path": None,
+                "runtime": 45
+            } for i in range(1, 11)
+        ]
+    }
 
 def get_trending(media_type="all", time_window="day"):
     query = f"trending_{media_type}_{time_window}"

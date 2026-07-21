@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Pencil, X, Check, Trash2 } from 'lucide-react';
+import { Plus, Pencil, X, Check, Trash2, Clock, Bookmark, User, Settings, Play, ArrowLeft, Monitor, Wifi, Flame, Shield, Sliders, RefreshCw, Cpu, Sparkles } from 'lucide-react';
+import { api, MediaItem } from './api';
+import { useAudio, EQPreset } from './AudioContext';
+import Navbar from './components/Navbar';
+import MediaCard from './components/Poster';
+import MobileBottomNav from './components/MobileBottomNav';
 
 interface ProfileData {
     id: string;
@@ -12,17 +16,15 @@ interface ProfileData {
 }
 
 const AVATAR_COLORS = [
-    'from-[#E50914] to-[#8B0000]',
-    'from-violet-600 to-purple-900',
+    'from-indigo-600 to-purple-900',
+    'from-violet-600 to-indigo-900',
     'from-sky-500 to-blue-800',
     'from-emerald-500 to-teal-800',
     'from-amber-500 to-orange-800',
     'from-pink-500 to-rose-800',
-    'from-cyan-400 to-sky-800',
-    'from-lime-400 to-green-800',
 ];
 
-const AVATAR_EMOJIS = ['😎', '🦊', '🐺', '🎮', '🚀', '👻', '🔥', '💎', '🎬', '🌙', '⚡', '🎯', '🦁', '🐉', '🌊', '🎸'];
+const AVATAR_EMOJIS = ['😎', '🦊', '🐺', '🎮', '🚀', '👻', '🔥', '💎', '🎬', '🌙', '⚡', '🎯'];
 
 const DEFAULT_PROFILES: ProfileData[] = [
     { id: '1', name: 'Admin', avatar: '😎', color: AVATAR_COLORS[0], isKids: false },
@@ -32,21 +34,89 @@ const DEFAULT_PROFILES: ProfileData[] = [
 
 export default function Profile() {
     const navigate = useNavigate();
+    const { eqPreset, setEqPreset } = useAudio();
+
+    // Profiles state
     const [profiles, setProfiles] = useState<ProfileData[]>(() => {
         const stored = localStorage.getItem('streamx_profiles');
         return stored ? JSON.parse(stored) : DEFAULT_PROFILES;
     });
+
+    const [activeProfile, setActiveProfile] = useState<ProfileData>(() => {
+        const stored = localStorage.getItem('streamx_active_profile');
+        return stored ? JSON.parse(stored) : profiles[0];
+    });
+
     const [isEditing, setIsEditing] = useState(false);
     const [editingProfile, setEditingProfile] = useState<ProfileData | null>(null);
     const [showAddModal, setShowAddModal] = useState(false);
+
+    // Profile form state
     const [newName, setNewName] = useState('');
     const [newAvatar, setNewAvatar] = useState('🎮');
-    const [newColor, setNewColor] = useState(AVATAR_COLORS[3]);
+    const [newColor, setNewColor] = useState(AVATAR_COLORS[0]);
     const [newIsKids, setNewIsKids] = useState(false);
+
+    // User Watch History, Watchlist, and Stats state
+    const [history, setHistory] = useState<MediaItem[]>([]);
+    const [watchlist, setWatchlist] = useState<MediaItem[]>([]);
+    const [loadingData, setLoadingData] = useState(true);
+    const [activeTab, setActiveTab] = useState<'overview' | 'settings' | 'watchlist' | 'history' | 'profiles'>('overview');
+
+    // Real-Time Dashboard Info
+    const [currentTimeStr, setCurrentTimeStr] = useState('');
+    const [currentDateStr, setCurrentDateStr] = useState('');
+    const [deviceType, setDeviceType] = useState('Desktop / Laptop');
+    const [accentColor, setAccentColor] = useState(() => localStorage.getItem('streamx_accent') || '#6366F1');
+    const [videoQualityPref, setVideoQualityPref] = useState(() => localStorage.getItem('streamx_quality_pref') || 'VidLink (4K Ultra HD)');
+
+    // Live Clock Effect
+    useEffect(() => {
+        const updateClock = () => {
+            const now = new Date();
+            setCurrentTimeStr(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+            setCurrentDateStr(now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }));
+        };
+        updateClock();
+        const timer = setInterval(updateClock, 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    // Detect Device Type
+    useEffect(() => {
+        const ua = navigator.userAgent.toLowerCase();
+        if (/tv|smarttv|googletv|appletv/i.test(ua)) setDeviceType('Smart TV (10-Foot UI)');
+        else if (/mobile|android|iphone|ipad/i.test(ua)) setDeviceType('Mobile / Tablet');
+        else setDeviceType('Desktop / Laptop');
+    }, []);
 
     useEffect(() => {
         localStorage.setItem('streamx_profiles', JSON.stringify(profiles));
     }, [profiles]);
+
+    useEffect(() => {
+        let cancelled = false;
+        setLoadingData(true);
+
+        Promise.allSettled([
+            api.getHistory(),
+            api.getWatchlist(),
+        ]).then(([histRes, wlRes]) => {
+            if (cancelled) return;
+
+            let fetchedHist: MediaItem[] = histRes.status === 'fulfilled' && Array.isArray(histRes.value) ? histRes.value : [];
+            let fetchedWl: MediaItem[] = wlRes.status === 'fulfilled' && Array.isArray(wlRes.value) ? wlRes.value : [];
+
+            const storedWl: MediaItem[] = JSON.parse(localStorage.getItem('streamx_watchlist') || '[]');
+            if (fetchedWl.length === 0 && storedWl.length > 0) fetchedWl = storedWl;
+
+            setHistory(fetchedHist);
+            setWatchlist(fetchedWl);
+            setLoadingData(false);
+        });
+
+        return () => { cancelled = true; };
+    }, []);
 
     const handleSelectProfile = (profile: ProfileData) => {
         if (isEditing) {
@@ -57,8 +127,8 @@ export default function Profile() {
             setNewIsKids(profile.isKids);
             return;
         }
+        setActiveProfile(profile);
         localStorage.setItem('streamx_active_profile', JSON.stringify(profile));
-        navigate('/');
     };
 
     const handleSaveEdit = () => {
@@ -85,294 +155,330 @@ export default function Profile() {
         };
         setProfiles(prev => [...prev, newProfile]);
         setShowAddModal(false);
-        setNewName('');
-        setNewAvatar('🎮');
-        setNewColor(AVATAR_COLORS[3]);
-        setNewIsKids(false);
+    };
+
+    const handleClearData = () => {
+        if (window.confirm('Are you sure you want to clear watch history and saved local data?')) {
+            localStorage.removeItem('streamx_watchlist');
+            localStorage.removeItem('streamx_favorites');
+            api.clearHistory().catch(() => { });
+            setHistory([]);
+            setWatchlist([]);
+        }
+    };
+
+    const handleAccentChange = (hex: string) => {
+        setAccentColor(hex);
+        localStorage.setItem('streamx_accent', hex);
+        document.documentElement.style.setProperty('--accent', hex);
     };
 
     return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="min-h-screen bg-[#040404] text-white flex flex-col items-center justify-center px-6 relative overflow-hidden"
-        >
-            {/* Background */}
-            <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[#E50914]/5 blur-[200px]" />
-            </div>
+        <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', paddingBottom: 90 }}>
+            <Navbar />
 
-            {/* Title */}
-            <motion.h1
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="text-3xl md:text-5xl font-black mb-3 tracking-tight text-center relative z-10"
-            >
-                Who's watching?
-            </motion.h1>
-            <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                className="text-sm text-white/30 mb-12 md:mb-16"
-            >
-                Select your profile to continue
-            </motion.p>
+            <div style={{ maxWidth: 1120, margin: '0 auto', padding: '36px 28px 80px' }}>
 
-            {/* Profiles Grid */}
-            <div className="flex flex-wrap justify-center gap-8 md:gap-12 relative z-10">
-                {profiles.map((p, i) => (
-                    <motion.div
-                        key={p.id}
-                        initial={{ opacity: 0, scale: 0.7, y: 30 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        transition={{ delay: 0.15 + i * 0.08, type: 'spring', stiffness: 100 }}
-                        onClick={() => handleSelectProfile(p)}
-                        className="group flex flex-col items-center gap-4 cursor-pointer relative"
-                    >
-                        {/* Avatar */}
-                        <div className={`
-                            w-28 h-28 md:w-36 md:h-36 rounded-3xl flex items-center justify-center
-                            bg-gradient-to-br ${p.color}
-                            border-4 border-transparent group-hover:border-white/80
-                            transition-all duration-300 group-hover:scale-105
-                            shadow-xl group-hover:shadow-2xl
-                            ${isEditing ? 'animate-pulse' : ''}
-                            relative overflow-hidden
-                        `}>
-                            <span className="text-4xl md:text-5xl select-none relative z-10">{p.avatar}</span>
-                            {/* Shine effect */}
-                            <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                            
-                            {/* Kids badge */}
-                            {p.isKids && (
-                                <div className="absolute top-2 right-2 bg-yellow-400 text-black text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider z-20">
-                                    Kids
-                                </div>
-                            )}
-
-                            {/* Edit overlay */}
-                            {isEditing && (
-                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
-                                    <Pencil className="w-6 h-6 text-white" />
-                                </div>
-                            )}
+                {/* ── PROFILE HERO HEADER CARD ── */}
+                <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '28px 32px', background: 'var(--surface-elevated)',
+                    border: '1px solid var(--border-glow)', borderRadius: 'var(--radius-xl)',
+                    marginBottom: 32, flexWrap: 'wrap', gap: 20, boxShadow: 'var(--shadow)'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                        <div style={{
+                            width: 72, height: 72, borderRadius: '50%',
+                            background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 34, border: '2px solid rgba(255,255,255,0.2)',
+                            boxShadow: '0 0 24px rgba(99, 102, 241, 0.4)'
+                        }}>
+                            {activeProfile.avatar}
                         </div>
-
-                        {/* Name */}
-                        <span className={`text-lg font-semibold transition-colors ${isEditing ? 'text-white/50' : 'text-white/50 group-hover:text-white'}`}>
-                            {p.name}
-                        </span>
-                    </motion.div>
-                ))}
-
-                {/* Add Profile */}
-                {profiles.length < 6 && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.7, y: 30 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        transition={{ delay: 0.15 + profiles.length * 0.08, type: 'spring', stiffness: 100 }}
-                        onClick={() => { setShowAddModal(true); setNewName(''); setNewAvatar('🎮'); setNewColor(AVATAR_COLORS[3]); setNewIsKids(false); }}
-                        className="group flex flex-col items-center gap-4 cursor-pointer"
-                    >
-                        <div className="w-28 h-28 md:w-36 md:h-36 rounded-3xl bg-white/[0.04] border-2 border-dashed border-white/10 flex items-center justify-center group-hover:bg-white/[0.08] group-hover:border-white/25 transition-all duration-300 group-hover:scale-105">
-                            <Plus className="w-10 h-10 text-white/20 group-hover:text-white/50 transition-colors" />
+                        <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <h1 style={{ fontSize: 26, fontWeight: 900, color: '#F8FAFC' }}>
+                                    {activeProfile.name}
+                                </h1>
+                                {activeProfile.isKids && (
+                                    <span style={{ background: '#F59E0B', color: '#000', fontSize: 10, fontWeight: 900, padding: '2px 8px', borderRadius: 999, textTransform: 'uppercase' }}>
+                                        Kids
+                                    </span>
+                                )}
+                            </div>
+                            <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <Shield size={13} style={{ color: 'var(--accent)' }} /> Active User · Cinema-Grade Account
+                            </p>
                         </div>
-                        <span className="text-lg font-semibold text-white/20 group-hover:text-white/50 transition-colors">Add Profile</span>
-                    </motion.div>
-                )}
-            </div>
-
-            {/* Manage Profiles Button */}
-            <motion.button
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                onClick={() => setIsEditing(!isEditing)}
-                className={`mt-14 md:mt-16 px-8 py-3 rounded-xl text-sm font-bold uppercase tracking-[0.15em] transition-all border ${
-                    isEditing
-                        ? 'bg-white text-black border-white hover:bg-gray-200'
-                        : 'bg-transparent text-white/40 border-white/15 hover:text-white hover:border-white/40'
-                }`}
-            >
-                {isEditing ? 'Done' : 'Manage Profiles'}
-            </motion.button>
-
-            {/* Edit Profile Modal */}
-            <AnimatePresence>
-                {editingProfile && (
-                    <ProfileModal
-                        title="Edit Profile"
-                        name={newName}
-                        avatar={newAvatar}
-                        color={newColor}
-                        isKids={newIsKids}
-                        onNameChange={setNewName}
-                        onAvatarChange={setNewAvatar}
-                        onColorChange={setNewColor}
-                        onKidsChange={setNewIsKids}
-                        onSave={handleSaveEdit}
-                        onClose={() => setEditingProfile(null)}
-                        onDelete={() => handleDeleteProfile(editingProfile.id)}
-                        canDelete={profiles.length > 1}
-                    />
-                )}
-            </AnimatePresence>
-
-            {/* Add Profile Modal */}
-            <AnimatePresence>
-                {showAddModal && (
-                    <ProfileModal
-                        title="Add Profile"
-                        name={newName}
-                        avatar={newAvatar}
-                        color={newColor}
-                        isKids={newIsKids}
-                        onNameChange={setNewName}
-                        onAvatarChange={setNewAvatar}
-                        onColorChange={setNewColor}
-                        onKidsChange={setNewIsKids}
-                        onSave={handleAddProfile}
-                        onClose={() => setShowAddModal(false)}
-                    />
-                )}
-            </AnimatePresence>
-        </motion.div>
-    );
-}
-
-/* ── Profile Modal ── */
-function ProfileModal({
-    title, name, avatar, color, isKids,
-    onNameChange, onAvatarChange, onColorChange, onKidsChange,
-    onSave, onClose, onDelete, canDelete
-}: {
-    title: string;
-    name: string;
-    avatar: string;
-    color: string;
-    isKids: boolean;
-    onNameChange: (v: string) => void;
-    onAvatarChange: (v: string) => void;
-    onColorChange: (v: string) => void;
-    onKidsChange: (v: boolean) => void;
-    onSave: () => void;
-    onClose: () => void;
-    onDelete?: () => void;
-    canDelete?: boolean;
-}) {
-    return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[500] bg-black/80 backdrop-blur-md flex items-center justify-center p-6"
-            onClick={onClose}
-        >
-            <motion.div
-                initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-lg bg-[#141414] border border-white/10 rounded-3xl p-8 shadow-2xl"
-            >
-                <div className="flex items-center justify-between mb-8">
-                    <h2 className="text-2xl font-black">{title}</h2>
-                    <button onClick={onClose} className="text-white/30 hover:text-white transition-colors">
-                        <X className="w-6 h-6" />
-                    </button>
-                </div>
-
-                {/* Preview */}
-                <div className="flex justify-center mb-8">
-                    <div className={`w-24 h-24 rounded-3xl bg-gradient-to-br ${color} flex items-center justify-center shadow-xl`}>
-                        <span className="text-4xl select-none">{avatar}</span>
                     </div>
-                </div>
 
-                {/* Name */}
-                <div className="mb-6">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-2 block">Name</label>
-                    <input
-                        type="text"
-                        value={name}
-                        onChange={(e) => onNameChange(e.target.value)}
-                        maxLength={20}
-                        className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 text-white font-medium outline-none focus:border-[#E50914]/50 transition-all"
-                        placeholder="Profile name"
-                        autoFocus
-                    />
-                </div>
-
-                {/* Avatar Picker */}
-                <div className="mb-6">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-3 block">Avatar</label>
-                    <div className="grid grid-cols-8 gap-2">
-                        {AVATAR_EMOJIS.map(emoji => (
+                    {/* Navigation Sub-Tabs */}
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {(['overview', 'settings', 'watchlist', 'history', 'profiles'] as const).map(tab => (
                             <button
-                                key={emoji}
-                                onClick={() => onAvatarChange(emoji)}
-                                className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-all ${
-                                    avatar === emoji ? 'bg-white/20 ring-2 ring-[#E50914] scale-110' : 'bg-white/[0.04] hover:bg-white/10'
-                                }`}
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                style={{
+                                    padding: '8px 16px', borderRadius: 10, border: '1px solid var(--border)',
+                                    background: activeTab === tab ? 'var(--accent)' : 'var(--surface-2)',
+                                    color: activeTab === tab ? '#fff' : 'var(--text-2)',
+                                    fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                                    transition: 'all 0.18s ease', display: 'flex', alignItems: 'center', gap: 6
+                                }}
                             >
-                                {emoji}
+                                {tab === 'overview' && <Sparkles size={14} />}
+                                {tab === 'settings' && <Settings size={14} />}
+                                {tab === 'watchlist' && <Bookmark size={14} />}
+                                {tab === 'history' && <Clock size={14} />}
+                                {tab === 'profiles' && <User size={14} />}
+                                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                                {tab === 'watchlist' && watchlist.length > 0 && <span style={{ opacity: 0.8 }}>({watchlist.length})</span>}
                             </button>
                         ))}
                     </div>
                 </div>
 
-                {/* Color Picker */}
-                <div className="mb-6">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-3 block">Color</label>
-                    <div className="flex gap-3 flex-wrap">
-                        {AVATAR_COLORS.map(c => (
-                            <button
-                                key={c}
-                                onClick={() => onColorChange(c)}
-                                className={`w-9 h-9 rounded-xl bg-gradient-to-br ${c} transition-all ${
-                                    color === c ? 'ring-2 ring-white scale-110 shadow-lg' : 'opacity-60 hover:opacity-100'
-                                }`}
-                            />
-                        ))}
-                    </div>
-                </div>
+                {/* ── OVERVIEW DASHBOARD ── */}
+                {activeTab === 'overview' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
 
-                {/* Kids toggle */}
-                <div className="flex items-center justify-between mb-8 bg-white/[0.03] rounded-xl px-4 py-3.5 border border-white/[0.06]">
+                        {/* Real-Time Device & Environment Bar */}
+                        <div style={{
+                            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16
+                        }}>
+                            <div style={{ padding: 20, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16 }}>
+                                <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-3)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <Clock size={13} style={{ color: 'var(--accent)' }} /> Live Time
+                                </div>
+                                <div style={{ fontSize: 22, fontWeight: 900, color: '#F8FAFC', fontVariantNumeric: 'tabular-nums' }}>
+                                    {currentTimeStr || '00:00:00'}
+                                </div>
+                                <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>{currentDateStr}</div>
+                            </div>
+
+                            <div style={{ padding: 20, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16 }}>
+                                <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-3)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <Monitor size={13} style={{ color: 'var(--accent)' }} /> Device Mode
+                                </div>
+                                <div style={{ fontSize: 18, fontWeight: 900, color: '#F8FAFC' }}>
+                                    {deviceType}
+                                </div>
+                                <div style={{ fontSize: 12, color: 'var(--accent)', marginTop: 2, fontWeight: 700 }}>Adaptive Remote Ready</div>
+                            </div>
+
+                            <div style={{ padding: 20, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16 }}>
+                                <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-3)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <Wifi size={13} style={{ color: 'var(--accent)' }} /> System Network
+                                </div>
+                                <div style={{ fontSize: 18, fontWeight: 900, color: '#10B981', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span>Online ⚡</span>
+                                </div>
+                                <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>Ultra-HD 4K Engine Ready</div>
+                            </div>
+
+                            <div style={{ padding: 20, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16 }}>
+                                <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-3)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <Flame size={13} style={{ color: '#F59E0B' }} /> Stream Streak
+                                </div>
+                                <div style={{ fontSize: 22, fontWeight: 900, color: '#F59E0B' }}>
+                                    7 Days 🔥
+                                </div>
+                                <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>Daily Active Streamer</div>
+                            </div>
+                        </div>
+
+                        {/* Watchlist Quick Grid */}
+                        <div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                                <h2 style={{ fontSize: 18, fontWeight: 900, color: '#F8FAFC', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <Bookmark size={18} style={{ color: 'var(--accent)' }} /> Saved Watchlist ({watchlist.length})
+                                </h2>
+                                {watchlist.length > 0 && (
+                                    <button onClick={() => setActiveTab('watchlist')} style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 700 }}>
+                                        See All
+                                    </button>
+                                )}
+                            </div>
+
+                            {watchlist.length > 0 ? (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 16 }}>
+                                    {watchlist.slice(0, 6).map(item => (
+                                        <MediaCard key={`wl-${item.tmdb_id}`} item={item} showLabel />
+                                    ))}
+                                </div>
+                            ) : (
+                                <div style={{ padding: 32, background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', textAlign: 'center', color: 'var(--text-3)' }}>
+                                    <p>Your Watchlist is currently empty. Add titles from movies or TV pages!</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* ── SETTINGS TAB ── */}
+                {activeTab === 'settings' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 700 }}>
+                        <h2 style={{ fontSize: 20, fontWeight: 900, color: '#F8FAFC' }}>System Preferences & Settings</h2>
+
+                        {/* Preferred Video Server */}
+                        <div style={{ padding: 20, background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)' }}>
+                            <label style={{ fontSize: 14, fontWeight: 800, color: '#F8FAFC', display: 'block', marginBottom: 6 }}>
+                                Primary Video Stream Provider
+                            </label>
+                            <p style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 12 }}>
+                                Automatic failover will switch servers if primary stream times out.
+                            </p>
+                            <select
+                                value={videoQualityPref}
+                                onChange={e => { setVideoQualityPref(e.target.value); localStorage.setItem('streamx_quality_pref', e.target.value); }}
+                                style={{ width: '100%', padding: '12px 14px', background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 10, color: '#fff', fontSize: 14, outline: 'none' }}
+                            >
+                                <option value="VidLink (4K Ultra HD)">VidLink (4K Ultra HD) — Recommended</option>
+                                <option value="Embed.su (1080p HD)">Embed.su (1080p Full HD)</option>
+                                <option value="AutoEmbed (1080p)">AutoEmbed (Auto Server)</option>
+                                <option value="VidSrc Pro (HD)">VidSrc Pro (Backup)</option>
+                            </select>
+                        </div>
+
+                        {/* Equalizer DSP Preset */}
+                        <div style={{ padding: 20, background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)' }}>
+                            <label style={{ fontSize: 14, fontWeight: 800, color: '#F8FAFC', display: 'block', marginBottom: 6 }}>
+                                Web Audio DSP Equalizer Preset
+                            </label>
+                            <p style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 12 }}>
+                                Applied live across StreamX Audio music player.
+                            </p>
+                            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                                {(['Flat', 'Bass Boost', 'Vocal', 'Treble Boost', 'Electronic'] as EQPreset[]).map(p => (
+                                    <button
+                                        key={p}
+                                        onClick={() => setEqPreset(p)}
+                                        style={{
+                                            padding: '8px 16px', borderRadius: 999, border: `1.5px solid ${eqPreset === p ? 'var(--accent)' : 'var(--border)'}`,
+                                            background: eqPreset === p ? 'var(--accent-bg)' : 'var(--surface-2)',
+                                            color: eqPreset === p ? 'var(--accent)' : 'var(--text)', fontSize: 13, fontWeight: 700, cursor: 'pointer'
+                                        }}
+                                    >
+                                        {p}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Theme Accent Color */}
+                        <div style={{ padding: 20, background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)' }}>
+                            <label style={{ fontSize: 14, fontWeight: 800, color: '#F8FAFC', display: 'block', marginBottom: 6 }}>
+                                UI Theme Accent Color
+                            </label>
+                            <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
+                                {[
+                                    { name: 'Neon Indigo', hex: '#6366F1' },
+                                    { name: 'Electric Cyan', hex: '#06B6D4' },
+                                    { name: 'Cyber Pink', hex: '#EC4899' },
+                                    { name: 'Emerald Glow', hex: '#10B981' },
+                                ].map(c => (
+                                    <button
+                                        key={c.hex}
+                                        onClick={() => handleAccentChange(c.hex)}
+                                        style={{
+                                            width: 38, height: 38, borderRadius: '50%', background: c.hex,
+                                            border: `3px solid ${accentColor === c.hex ? '#fff' : 'transparent'}`,
+                                            cursor: 'pointer', boxShadow: accentColor === c.hex ? `0 0 16px ${c.hex}` : 'none'
+                                        }}
+                                        title={c.name}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Reset Cache & History */}
+                        <div style={{ padding: 20, background: 'rgba(239,68,68,0.06)', borderRadius: 16, border: '1px solid rgba(239,68,68,0.2)' }}>
+                            <label style={{ fontSize: 14, fontWeight: 800, color: '#F87171', display: 'block', marginBottom: 6 }}>
+                                Danger Zone
+                            </label>
+                            <p style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 14 }}>
+                                Clear local watch history, favorites, and cached stream metadata.
+                            </p>
+                            <button onClick={handleClearData} className="btn btn-danger" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <Trash2 size={15} /> Clear Saved Data & History
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* ── WATCHLIST TAB ── */}
+                {activeTab === 'watchlist' && (
                     <div>
-                        <p className="text-sm font-bold">Kids Profile</p>
-                        <p className="text-xs text-white/30">Only show content rated for children</p>
+                        <h2 style={{ fontSize: 20, fontWeight: 900, color: '#F8FAFC', marginBottom: 20 }}>Saved Watchlist ({watchlist.length})</h2>
+                        {watchlist.length > 0 ? (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(154px, 1fr))', gap: 16 }}>
+                                {watchlist.map(item => (
+                                    <MediaCard key={`wl-tab-${item.tmdb_id}`} item={item} showLabel />
+                                ))}
+                            </div>
+                        ) : (
+                            <div style={{ padding: 40, background: 'var(--surface)', borderRadius: 16, textAlign: 'center', color: 'var(--text-3)' }}>
+                                Your watchlist is empty.
+                            </div>
+                        )}
                     </div>
-                    <button
-                        onClick={() => onKidsChange(!isKids)}
-                        className={`w-12 h-6 rounded-full relative transition-colors ${isKids ? 'bg-[#E50914]' : 'bg-white/20'}`}
-                    >
-                        <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${isKids ? 'translate-x-6' : ''}`} />
-                    </button>
-                </div>
+                )}
 
-                {/* Actions */}
-                <div className="flex gap-3">
-                    {onDelete && canDelete && (
-                        <button
-                            onClick={onDelete}
-                            className="flex items-center gap-2 px-5 py-3 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 font-bold text-sm transition-all"
-                        >
-                            <Trash2 className="w-4 h-4" /> Delete
-                        </button>
-                    )}
-                    <button
-                        onClick={onSave}
-                        disabled={!name.trim()}
-                        className="flex-1 flex items-center justify-center gap-2 bg-[#E50914] hover:bg-[#f40612] text-white font-bold py-3 rounded-xl transition-all disabled:opacity-30 shadow-lg shadow-[#E50914]/20"
-                    >
-                        <Check className="w-4 h-4" /> Save
-                    </button>
-                </div>
-            </motion.div>
-        </motion.div>
+                {/* ── WATCH HISTORY TAB ── */}
+                {activeTab === 'history' && (
+                    <div>
+                        <h2 style={{ fontSize: 20, fontWeight: 900, color: '#F8FAFC', marginBottom: 20 }}>Recently Watched ({history.length})</h2>
+                        {history.length > 0 ? (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(154px, 1fr))', gap: 16 }}>
+                                {history.map(item => (
+                                    <MediaCard key={`hist-tab-${item.tmdb_id}`} item={item} showLabel />
+                                ))}
+                            </div>
+                        ) : (
+                            <div style={{ padding: 40, background: 'var(--surface)', borderRadius: 16, textAlign: 'center', color: 'var(--text-3)' }}>
+                                No watch history available.
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* ── PROFILES TAB ── */}
+                {activeTab === 'profiles' && (
+                    <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+                            <h2 style={{ fontSize: 20, fontWeight: 900, color: '#F8FAFC' }}>Manage Account Profiles</h2>
+                            <button onClick={() => setIsEditing(v => !v)} className="btn btn-ghost">
+                                {isEditing ? <Check size={16} /> : <Pencil size={16} />} {isEditing ? 'Done' : 'Edit'}
+                            </button>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 20 }}>
+                            {profiles.map(p => (
+                                <div
+                                    key={p.id}
+                                    onClick={() => handleSelectProfile(p)}
+                                    style={{
+                                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+                                        padding: 16, borderRadius: 16, background: activeProfile.id === p.id ? 'var(--accent-bg)' : 'var(--surface)',
+                                        border: `1.5px solid ${activeProfile.id === p.id ? 'var(--accent)' : 'var(--border)'}`,
+                                        cursor: 'pointer', transition: 'all 0.15s ease'
+                                    }}
+                                >
+                                    <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>
+                                        {p.avatar}
+                                    </div>
+                                    <span style={{ fontSize: 14, fontWeight: 800, color: activeProfile.id === p.id ? 'var(--accent)' : 'var(--text)' }}>
+                                        {p.name}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Mobile Bottom Navigation Bar */}
+            <MobileBottomNav />
+        </div>
     );
 }

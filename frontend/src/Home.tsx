@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, TrendingUp, Film, Tv, Bookmark, Clock, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { TrendingUp, Film, Tv, Bookmark, Clock } from 'lucide-react';
 import { api, MediaItem } from './api';
 import Navbar from './components/Navbar';
 import Row from './components/Row';
@@ -14,18 +14,21 @@ interface HomeProps {
 
 type Tab = 'home' | 'movies' | 'tv' | 'list';
 
-const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'home', label: 'All', icon: <TrendingUp size={14} /> },
-    { id: 'movies', label: 'Movies', icon: <Film size={14} /> },
-    { id: 'tv', label: 'TV Shows', icon: <Tv size={14} /> },
-    { id: 'list', label: 'My List', icon: <Bookmark size={14} /> },
+const TABS: { id: Tab; label: string; route: string; icon: React.ReactNode }[] = [
+    { id: 'home', label: 'All', route: '/', icon: <TrendingUp size={14} /> },
+    { id: 'movies', label: 'Movies', route: '/movies', icon: <Film size={14} /> },
+    { id: 'tv', label: 'TV Shows', route: '/tv', icon: <Tv size={14} /> },
+    { id: 'list', label: 'My List', route: '/my-list', icon: <Bookmark size={14} /> },
 ];
 
 export default function Home({ defaultTab = 'home' }: HomeProps) {
     const navigate = useNavigate();
-
     const [tab, setTab] = useState<Tab>(defaultTab);
-    const [searchQuery, setSearchQuery] = useState('');
+
+    // Sync tab when prop changes
+    useEffect(() => {
+        setTab(defaultTab);
+    }, [defaultTab]);
 
     // Data state
     const [trending, setTrending] = useState<MediaItem[]>([]);
@@ -34,28 +37,32 @@ export default function Home({ defaultTab = 'home' }: HomeProps) {
     const [continueWatching, setContinueWatching] = useState<MediaItem[]>([]);
     const [myList, setMyList] = useState<MediaItem[]>([]);
     const [recommendations, setRecommendations] = useState<MediaItem[]>([]);
-
     const [loading, setLoading] = useState(true);
 
-    // ── Load data ───────────────────────────────────────────
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
 
+        // Fetch API + sync LocalStorage Watchlist
         Promise.allSettled([
             api.getTrending(),
             api.getDiscover('movie'),
             api.getDiscover('tv'),
-            api.getLibrary(), // using getLibrary as placeholder for continue watching if needed
-            api.getFavorites(),
+            api.getContinueWatching(),
+            api.getWatchlist(),
             api.getRecommendations()
-        ]).then(([t, m, tv, cw, fav, rec]) => {
+        ]).then(([t, m, tvRes, cw, fav, rec]) => {
             if (cancelled) return;
             if (t.status === 'fulfilled') setTrending(t.value.slice(0, 20));
             if (m.status === 'fulfilled') setMovies(m.value.slice(0, 20));
-            if (tv.status === 'fulfilled') setTv(tv.value.slice(0, 20));
+            if (tvRes.status === 'fulfilled') setTv(tvRes.value.slice(0, 20));
             if (cw.status === 'fulfilled') setContinueWatching(cw.value.slice(0, 10));
-            if (fav.status === 'fulfilled') setMyList(fav.value.slice(0, 20));
+
+            let listItems: MediaItem[] = fav.status === 'fulfilled' && Array.isArray(fav.value) ? fav.value : [];
+            const localWl: MediaItem[] = JSON.parse(localStorage.getItem('streamx_watchlist') || '[]');
+            if (localWl.length > 0) listItems = localWl;
+
+            setMyList(listItems);
             if (rec.status === 'fulfilled') setRecommendations(rec.value.slice(0, 20));
             setLoading(false);
         });
@@ -63,22 +70,26 @@ export default function Home({ defaultTab = 'home' }: HomeProps) {
         return () => { cancelled = true; };
     }, []);
 
+    const handleTabClick = (target: typeof TABS[0]) => {
+        setTab(target.id);
+        navigate(target.route);
+    };
+
     const hour = new Date().getHours();
     const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
-    // ── Main view ───────────────────────────────────────────
     return (
-        <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+        <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
             <Navbar />
 
             {/* Hero Banner only on Home */}
             {tab === 'home' && trending.length > 0 && !loading && (
-                <div style={{ marginTop: -20 }}>
+                <div style={{ marginTop: 0 }}>
                     <HeroBanner items={trending.slice(0, 5)} />
                 </div>
             )}
 
-            {/* Greeting header (if no hero) */}
+            {/* Greeting header (if no hero or not home tab) */}
             {(tab !== 'home' || trending.length === 0) && (
                 <div className="home-header">
                     <div>
@@ -93,9 +104,8 @@ export default function Home({ defaultTab = 'home' }: HomeProps) {
                 {TABS.map(t => (
                     <button
                         key={t.id}
-                        onClick={() => setTab(t.id)}
+                        onClick={() => handleTabClick(t)}
                         className={`category-tab ${tab === t.id ? 'active' : ''}`}
-                        style={{ display: 'flex', alignItems: 'center', gap: 5 }}
                     >
                         {t.icon} {t.label}
                     </button>
@@ -116,13 +126,13 @@ export default function Home({ defaultTab = 'home' }: HomeProps) {
                         <div className="home-section">
                             <div className="home-section-header">
                                 <h2 className="home-section-title" style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                                    <Clock size={16} style={{ color: 'var(--accent-dark)' }} />
+                                    <Clock size={16} style={{ color: 'var(--accent)' }} />
                                     Continue Watching
                                 </h2>
                             </div>
                             <div className="section-row scrollbar-hide">
                                 {continueWatching.map(item => (
-                                    <MediaCard key={item.tmdb_id} item={item} />
+                                    <MediaCard key={`cw-${item.tmdb_id}`} item={item} />
                                 ))}
                             </div>
                         </div>
@@ -134,7 +144,7 @@ export default function Home({ defaultTab = 'home' }: HomeProps) {
                             {recommendations.length > 0 && <Row title="Recommended for You" items={recommendations} />}
                             <Row title="Trending Now" items={trending} />
                             <Row title="Popular Movies" items={movies} />
-                            <Row title="Top TV Shows" items={tv} />
+                            <Row title="Top TV Series" items={tv} />
                         </>
                     )}
 
@@ -143,7 +153,7 @@ export default function Home({ defaultTab = 'home' }: HomeProps) {
                         <>
                             <Row title="Popular Movies" items={movies} />
                             <Row
-                                title="Trending"
+                                title="Trending Movies"
                                 items={trending.filter(i => i.type === 'movie')}
                             />
                         </>
@@ -152,7 +162,7 @@ export default function Home({ defaultTab = 'home' }: HomeProps) {
                     {/* TV tab */}
                     {tab === 'tv' && (
                         <>
-                            <Row title="Top TV Shows" items={tv} />
+                            <Row title="Top TV Series" items={tv} />
                             <Row
                                 title="Trending Series"
                                 items={trending.filter(i => i.type === 'tv')}
@@ -164,14 +174,28 @@ export default function Home({ defaultTab = 'home' }: HomeProps) {
                     {tab === 'list' && (
                         myList.length === 0 ? (
                             <div className="empty-state" style={{ paddingTop: 80 }}>
-                                <div className="empty-state-icon">🎬</div>
-                                <div className="empty-state-text">Your list is empty</div>
-                                <p style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 6 }}>
-                                    Add movies & shows you want to watch
+                                <div className="empty-state-icon" style={{ fontSize: 48, marginBottom: 12 }}>🎬</div>
+                                <div className="empty-state-text" style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>
+                                    Your Watchlist is Empty
+                                </div>
+                                <p style={{ fontSize: 14, color: 'var(--text-3)', marginTop: 6 }}>
+                                    Add movies and TV shows you want to watch to find them here easily.
                                 </p>
                             </div>
                         ) : (
-                            <Row title="My List" items={myList} />
+                            <div className="home-section">
+                                <div className="home-section-header">
+                                    <h2 className="home-section-title" style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                                        <Bookmark size={16} style={{ color: 'var(--accent)' }} />
+                                        My List ({myList.length})
+                                    </h2>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(154px, 1fr))', gap: 16 }}>
+                                    {myList.map(item => (
+                                        <MediaCard key={`ml-${item.tmdb_id}`} item={item} showLabel />
+                                    ))}
+                                </div>
+                            </div>
                         )
                     )}
                 </>

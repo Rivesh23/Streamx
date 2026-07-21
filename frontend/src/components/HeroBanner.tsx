@@ -37,7 +37,7 @@ export default function HeroBanner({ items }: HeroBannerProps) {
             position: 'relative',
             height: 520,
             overflow: 'hidden',
-            background: 'var(--surface)',
+            background: 'var(--surface-elevated)',
             marginBottom: 36,
         }}>
             {/* Backdrop */}
@@ -60,7 +60,7 @@ export default function HeroBanner({ items }: HeroBannerProps) {
             {/* Gradients */}
             <div style={{
                 position: 'absolute', inset: 0,
-                background: 'linear-gradient(to right, rgba(12,12,14,0.92) 0%, rgba(12,12,14,0.4) 55%, transparent 100%)',
+                background: 'linear-gradient(to right, rgba(11,13,18,0.95) 0%, rgba(11,13,18,0.4) 55%, transparent 100%)',
                 zIndex: 2,
             }} />
             <div style={{
@@ -74,7 +74,7 @@ export default function HeroBanner({ items }: HeroBannerProps) {
                 position: 'absolute', bottom: 0, left: 0,
                 zIndex: 5,
                 padding: '0 32px 40px',
-                maxWidth: 560,
+                maxWidth: 580,
                 opacity: transitioning ? 0 : 1,
                 transform: transitioning ? 'translateY(8px)' : 'translateY(0)',
                 transition: 'opacity 0.4s ease, transform 0.4s ease',
@@ -82,12 +82,13 @@ export default function HeroBanner({ items }: HeroBannerProps) {
                 {/* Type badge */}
                 <div style={{
                     display: 'inline-flex', alignItems: 'center', gap: 5,
-                    marginBottom: 14, padding: '4px 10px',
-                    background: 'var(--accent)', borderRadius: 999,
-                    fontSize: 10, fontWeight: 900, color: '#000',
+                    marginBottom: 14, padding: '4px 12px',
+                    background: 'var(--accent-bg)', borderRadius: 999,
+                    border: '1px solid var(--border-glow)',
+                    fontSize: 10, fontWeight: 900, color: 'var(--accent)',
                     letterSpacing: '0.1em', textTransform: 'uppercase',
                 }}>
-                    {featured.type === 'tv' ? '📺 TV Show' : '🎬 Movie'}
+                    {featured.type === 'tv' ? '📺 TV Series' : '🎬 Feature Film'}
                 </div>
 
                 {/* Title */}
@@ -95,10 +96,10 @@ export default function HeroBanner({ items }: HeroBannerProps) {
                     fontSize: 'clamp(28px, 4vw, 48px)',
                     fontWeight: 900,
                     letterSpacing: '-0.04em',
-                    color: '#fff',
+                    color: '#F8FAFC',
                     lineHeight: 1.05,
                     marginBottom: 12,
-                    textShadow: '0 2px 20px rgba(0,0,0,0.5)',
+                    textShadow: '0 4px 20px rgba(0,0,0,0.8)',
                 }}>
                     {featured.title}
                 </h2>
@@ -107,7 +108,7 @@ export default function HeroBanner({ items }: HeroBannerProps) {
                 {featured.overview && (
                     <p style={{
                         fontSize: 14,
-                        color: 'rgba(255,255,255,0.65)',
+                        color: 'var(--text-2)',
                         lineHeight: 1.65,
                         marginBottom: 24,
                         display: '-webkit-box',
@@ -120,76 +121,63 @@ export default function HeroBanner({ items }: HeroBannerProps) {
                 )}
 
                 {/* Buttons */}
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 12 }}>
                     <button
                         onClick={() => navigate(`/${featured.type}/${featured.tmdb_id}`)}
-                        style={{
-                            display: 'flex', alignItems: 'center', gap: 8,
-                            padding: '12px 24px', borderRadius: 12,
-                            fontSize: 15, fontWeight: 700, cursor: 'pointer',
-                            background: 'var(--accent)', color: '#000', border: 'none',
-                            transition: 'transform 0.15s, box-shadow 0.15s',
-                        }}
-                        onMouseEnter={e => {
-                            (e.currentTarget as HTMLElement).style.transform = 'scale(1.03)';
-                            (e.currentTarget as HTMLElement).style.boxShadow = '0 0 20px rgba(48,209,88,0.4)';
-                        }}
-                        onMouseLeave={e => {
-                            (e.currentTarget as HTMLElement).style.transform = 'none';
-                            (e.currentTarget as HTMLElement).style.boxShadow = 'none';
-                        }}
+                        className="btn btn-accent btn-lg"
+                        style={{ display: 'flex', alignItems: 'center', gap: 8 }}
                     >
-                        <Play size={16} style={{ fill: 'currentColor' }} />
+                        <Play size={17} style={{ fill: 'currentColor' }} />
                         Watch Now
                     </button>
                     <button
                         onClick={() => navigate(`/${featured.type}/${featured.tmdb_id}`)}
+                        className="btn btn-ghost btn-lg"
                         style={{
                             display: 'flex', alignItems: 'center', gap: 8,
-                            padding: '12px 20px', borderRadius: 12,
-                            fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                            background: 'rgba(255,255,255,0.12)', color: '#fff',
-                            border: '1px solid rgba(255,255,255,0.2)',
+                            background: 'rgba(255,255,255,0.08)', color: '#fff',
+                            border: '1px solid var(--border-2)',
                             backdropFilter: 'blur(8px)',
                         }}
                     >
-                        <Info size={15} /> More Info
+                        <Info size={16} /> More Info
                     </button>
                 </div>
             </div>
 
-            {/* Dot indicators + arrows */}
+            {/* Indicator Dots + Arrows */}
             {items.length > 1 && (
                 <div style={{
-                    position: 'absolute', bottom: 20, right: 28,
+                    position: 'absolute', bottom: 24, right: 32,
                     zIndex: 10, display: 'flex', alignItems: 'center', gap: 8,
                 }}>
-                    <button onClick={() => advance(-1)} style={{
-                        width: 32, height: 32, borderRadius: '50%',
-                        background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-                        color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    <button onClick={() => advance(-1)} className="btn-icon" style={{
+                        width: 34, height: 34, borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.08)', border: '1px solid var(--border)',
+                        color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
                         <ChevronLeft size={16} />
                     </button>
-                    <div style={{ display: 'flex', gap: 5 }}>
+                    <div style={{ display: 'flex', gap: 6 }}>
                         {items.slice(0, 7).map((_, i) => (
                             <button
                                 key={i}
                                 onClick={() => setIdx(i)}
                                 style={{
-                                    width: i === idx ? 20 : 6, height: 6,
+                                    width: i === idx ? 22 : 6, height: 6,
                                     borderRadius: 999,
-                                    background: i === idx ? 'var(--accent)' : 'rgba(255,255,255,0.3)',
+                                    background: i === idx ? 'var(--accent)' : 'rgba(255,255,255,0.25)',
                                     border: 'none', cursor: 'pointer',
                                     transition: 'width 0.3s, background 0.3s',
+                                    boxShadow: i === idx ? '0 0 10px rgba(99,102,241,0.5)' : 'none'
                                 }}
                             />
                         ))}
                     </div>
-                    <button onClick={() => advance(1)} style={{
-                        width: 32, height: 32, borderRadius: '50%',
-                        background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-                        color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    <button onClick={() => advance(1)} className="btn-icon" style={{
+                        width: 34, height: 34, borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.08)', border: '1px solid var(--border)',
+                        color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
                         <ChevronRight size={16} />
                     </button>
