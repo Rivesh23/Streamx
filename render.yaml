@@ -2,6 +2,7 @@ services:
   - type: web
     name: aura-cinema-app
     env: python
+    healthCheckPath: /health
     buildCommand: "cd frontend && npm install && npm run build && cd ../backend && pip install -r requirements.txt"
     startCommand: "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
     envVars:
@@ -9,3 +10,6 @@ services:
         value: 3.11.8
       - key: DATA_DIR
         value: /tmp
+      - key: RENDER_EXTERNAL_URL
+        sync: false
+

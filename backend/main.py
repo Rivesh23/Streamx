@@ -1,6 +1,8 @@
 import os
 import re
 import jwt
+import asyncio
+import urllib.request
 from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException, Header, Request, Depends, BackgroundTasks, status
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
@@ -37,10 +39,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/health")
+@app.head("/health")
 @app.get("/api/health")
 @app.head("/api/health")
 def health_check():
-    return {"status": "ok"}
+    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+
+@app.on_event("startup")
+async def start_keep_alive():
+    target_url = os.getenv("RENDER_EXTERNAL_URL") or os.getenv("KEEP_ALIVE_URL")
+    if target_url:
+        ping_url = target_url.rstrip("/") + "/health" if not target_url.endswith("/health") else target_url
+        async def ping_loop():
+            log.info(f"Starting keep-alive background pinger targeting {ping_url}")
+            while True:
+                await asyncio.sleep(600)  # Ping every 10 minutes
+                try:
+                    req = urllib.request.Request(ping_url, headers={"User-Agent": "StreamX-KeepAlive/1.0"})
+                    urllib.request.urlopen(req, timeout=10)
+                    log.info(f"Keep-alive ping sent to {ping_url}")
+                except Exception as e:
+                    log.warning(f"Keep-alive ping error: {e}")
+        asyncio.create_task(ping_loop())
 
 # --- Exception Handling ---
 @app.exception_handler(Exception)

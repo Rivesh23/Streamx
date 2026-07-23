@@ -1,0 +1,26 @@
+name: Keep Render App Awake
+
+on:
+  schedule:
+    # Run every 14 minutes to prevent Render free-tier sleep (inactivity timeout is 15 minutes)
+    - cron: '*/14 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping-render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render Service Health Endpoint
+        run: |
+          URL="${{ secrets.RENDER_APP_URL }}"
+          if [ -z "$URL" ]; then
+            URL="https://aura-cinema-app.onrender.com/health"
+          fi
+          echo "Pinging Render health endpoint at $URL..."
+          STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
+          echo "Response HTTP Status: $STATUS_CODE"
+          if [ "$STATUS_CODE" -eq 200 ]; then
+            echo "Render service is awake and healthy!"
+          else
+            echo "Service responded with code $STATUS_CODE"
+          fi
